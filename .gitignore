@@ -19,3 +19,6 @@ keystore.properties
 .externalNativeBuild
 .cxx
 local.properties
+
+# Ajustes locales de Android Studio: no aportan nada al repositorio.
+.idea/
