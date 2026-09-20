@@ -1,0 +1,104 @@
+<resources>
+    <string name="app_name">ExoTube</string>
+    <string name="share_target_label">Descargar con ExoTube</string>
+
+    <!-- Biblioteca -->
+    <string name="home_instructions">Abre un video en YouTube, TikTok, Instagram, X o Facebook, toca \"Compartir\" y elige ExoTube.</string>
+    <plurals name="library_count">
+        <item quantity="one">%d descarga</item>
+        <item quantity="many">%d descargas</item>
+        <item quantity="other">%d descargas</item>
+    </plurals>
+    <string name="library_count_mixed">%1$s · %2$d del teléfono</string>
+    <string name="library_filter_all">Todo</string>
+    <string name="library_filter_downloads">Descargas</string>
+    <string name="library_phone_music_title">Ver toda tu música</string>
+    <string name="library_phone_music_body">Muestra también los MP3 que ya tienes en el teléfono.</string>
+    <string name="library_phone_music_allow">Permitir</string>
+    <string name="library_filter_audio">Audio</string>
+    <string name="library_filter_video">Video</string>
+    <string name="library_empty_title">Tu biblioteca está vacía</string>
+    <string name="library_empty_filtered">Todavía no hay nada aquí</string>
+    <string name="type_audio">Audio</string>
+    <string name="type_video">Video</string>
+
+    <!-- Navegación y acciones comunes -->
+    <string name="nav_library">Biblioteca</string>
+    <string name="nav_playlists">Playlists</string>
+    <string name="navigate_back">Volver</string>
+    <string name="more_options">Más opciones</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_create">Crear</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_delete">Eliminar</string>
+
+    <!-- Playlists -->
+    <plurals name="playlist_count">
+        <item quantity="one">%d playlist</item>
+        <item quantity="many">%d playlists</item>
+        <item quantity="other">%d playlists</item>
+    </plurals>
+    <plurals name="playlist_song_count">
+        <item quantity="one">%d canción</item>
+        <item quantity="many">%d canciones</item>
+        <item quantity="other">%d canciones</item>
+    </plurals>
+    <string name="playlist_new">Nueva playlist</string>
+    <string name="playlist_name_hint">Por ejemplo: Favoritas</string>
+    <string name="playlist_cover">Portada de la playlist</string>
+    <string name="playlist_add_photo">Añadir foto</string>
+    <string name="playlist_change_photo">Cambiar foto</string>
+    <string name="playlist_remove_photo">Quitar foto</string>
+    <string name="playlist_cover_hint_random">Si no eliges una foto, usaremos la carátula de una de sus canciones al azar.</string>
+    <string name="playlist_cover_hint_photo">Toca la foto para cambiarla.</string>
+    <string name="playlists_empty_title">Crea tu primera playlist</string>
+    <string name="playlists_empty_body">Junta tus canciones favoritas en listas para escucharlas seguidas.</string>
+    <string name="playlist_play">Reproducir</string>
+    <string name="playlist_shuffle">Aleatorio</string>
+    <string name="playlist_empty">Esta playlist está vacía. En la Biblioteca, abre las opciones de una canción y elige \"Añadir a playlist\".</string>
+    <string name="playlist_rename">Renombrar</string>
+    <string name="playlist_rename_title">Renombrar playlist</string>
+    <string name="playlist_delete">Eliminar playlist</string>
+    <string name="playlist_delete_title">¿Eliminar \"%1$s\"?</string>
+    <string name="playlist_delete_body">Las canciones seguirán en tu biblioteca.</string>
+    <string name="add_to_playlist">Añadir a playlist</string>
+    <string name="remove_from_playlist">Quitar de la playlist</string>
+
+    <!-- Reproductor -->
+    <string name="player_now_playing">Reproduciendo</string>
+    <string name="player_collapse">Minimizar reproductor</string>
+    <string name="player_play">Reproducir</string>
+    <string name="player_pause">Pausar</string>
+    <string name="player_next">Siguiente</string>
+    <string name="player_previous">Anterior</string>
+
+    <!-- Bottom Sheet -->
+    <string name="sheet_loading">Analizando enlace…</string>
+    <string name="sheet_section_video">Video</string>
+    <string name="sheet_section_audio">Solo audio</string>
+    <string name="sheet_size_unknown">Tamaño desconocido</string>
+    <string name="sheet_retry">Reintentar</string>
+    <string name="sheet_close">Cerrar</string>
+    <string name="sheet_thumbnail_description">Miniatura del video</string>
+    <string name="download_started">Descarga iniciada: %1$s</string>
+
+    <!-- Notificaciones de descarga -->
+    <string name="channel_downloads_progress">Descargas en curso</string>
+    <string name="channel_downloads_result">Descargas finalizadas</string>
+    <string name="download_preparing">Preparando descarga…</string>
+    <string name="download_progress">%1$d %%</string>
+    <string name="download_progress_eta">%1$d %% · quedan %2$s</string>
+    <string name="download_processing">Procesando (uniendo o convirtiendo)…</string>
+    <string name="download_cancel">Cancelar</string>
+    <string name="download_completed">Descarga completada · toca para abrir</string>
+    <string name="download_failed">No se pudo descargar «%1$s»</string>
+
+    <!-- Errores -->
+    <string name="error_invalid_link">Lo que compartiste no contiene un enlace válido.</string>
+    <string name="error_unsupported_platform">Por ahora solo se admiten enlaces de YouTube, TikTok, Instagram, X y Facebook.</string>
+    <string name="error_private_content">Este contenido es privado, requiere iniciar sesión o ya no está disponible.</string>
+    <string name="error_no_media_found">Este enlace no contiene un video o audio descargable (¿es un perfil o una foto?).</string>
+    <string name="error_no_connection">Sin conexión a internet. Revisa tu red e inténtalo de nuevo.</string>
+    <string name="error_unknown">No se pudo procesar el enlace. Inténtalo de nuevo más tarde.</string>
+    <string name="error_storage_permission">Sin permiso de almacenamiento no se puede guardar el archivo.</string>
+</resources>

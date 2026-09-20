@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismos valores que ui/theme/Color.kt, para recursos XML (icono, ventana). -->
+    <color name="exotube_black">#FF000000</color>
+    <color name="exotube_green">#FF2EE67A</color>
+</resources>

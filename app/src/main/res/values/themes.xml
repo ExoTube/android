@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Tema oscuro con fondo negro: evita el destello blanco antes de que Compose dibuje. -->
+    <style name="Theme.ExoTube" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/exotube_black</item>
+    </style>
+
+    <!-- Ventana transparente: se ve la app de origen detrás del Bottom Sheet. -->
+    <style name="Theme.ExoTube.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <!-- Sin animación de Activity: la única animación visible es la del Bottom Sheet. -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+</resources>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Anillo + botón de reproducir, dentro de la zona segura de 66dp del icono adaptable. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M54,28a26,26 0,1 1,0 52a26,26 0,1 1,0 -52z"
+        android:strokeWidth="5"
+        android:strokeColor="@color/exotube_green" />
+    <path
+        android:fillColor="@color/exotube_green"
+        android:pathData="M47,40.5L68,54L47,67.5Z" />
+</vector>
