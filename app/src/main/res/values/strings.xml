@@ -19,6 +19,28 @@
     <string name="library_filter_video">Video</string>
     <string name="library_empty_title">Tu biblioteca está vacía</string>
     <string name="library_empty_filtered">Todavía no hay nada aquí</string>
+    <string name="library_search_hint">Buscar canción o artista</string>
+    <string name="library_empty_search">No encontramos nada con «%1$s»</string>
+
+    <!-- Buscador (compartido por Biblioteca y Explorar) -->
+    <string name="search_action">Buscar</string>
+    <string name="search_clear">Borrar la búsqueda</string>
+
+    <!-- Explorar -->
+    <string name="nav_explore">Explorar</string>
+    <string name="explore_subtitle">Videos y música en línea, sin anuncios.</string>
+    <string name="explore_search_hint">Buscar en YouTube</string>
+    <string name="explore_audio_only">Ahorrar datos</string>
+    <string name="explore_topic_music">Música</string>
+    <string name="explore_topic_latin">Reggaetón</string>
+    <string name="explore_topic_rock">Rock</string>
+    <string name="explore_topic_concerts">Conciertos</string>
+    <string name="explore_topic_podcast">Podcast</string>
+    <string name="explore_topic_news">Noticias</string>
+    <string name="explore_views">%1$s vistas</string>
+    <string name="explore_download">Descargar</string>
+    <string name="explore_empty">No encontramos ningún video</string>
+    <string name="explore_go_to_library">Ir a mi biblioteca</string>
     <string name="type_audio">Audio</string>
     <string name="type_video">Video</string>
 
@@ -71,6 +93,13 @@
     <string name="player_pause">Pausar</string>
     <string name="player_next">Siguiente</string>
     <string name="player_previous">Anterior</string>
+    <string name="player_error">No se pudo reproducir. Si es un video en línea, vuelve a tocarlo: los enlaces caducan al cabo de unas horas.</string>
+    <string name="player_shuffle_off">Activar orden aleatorio</string>
+    <string name="player_shuffle_on">Orden aleatorio activado</string>
+    <string name="player_repeat_off">Activar bucle</string>
+    <string name="player_repeat_once">Repetir esta canción 1 vez</string>
+    <string name="player_repeat_twice">Repetir esta canción 2 veces</string>
+    <string name="player_repeat_forever">Repetir esta canción siempre</string>
 
     <!-- Bottom Sheet -->
     <string name="sheet_loading">Analizando enlace…</string>

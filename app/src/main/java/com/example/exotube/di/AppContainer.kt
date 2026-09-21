@@ -9,12 +9,15 @@ import com.example.exotube.data.playlist.ExoTubeDatabase
 import com.example.exotube.data.playlist.PlaylistCoverStore
 import com.example.exotube.data.playlist.RoomPlaylistRepository
 import com.example.exotube.data.ytdlp.MediaExtractorManager
+import com.example.exotube.data.ytdlp.YtDlpCatalog
+import com.example.exotube.data.ytdlp.YtDlpEngine
 import com.example.exotube.domain.repository.DownloadHistoryRepository
 import com.example.exotube.domain.repository.DownloadScheduler
 import com.example.exotube.domain.repository.LibraryRepository
 import com.example.exotube.domain.repository.PlaylistRepository
 import com.example.exotube.domain.repository.MediaDownloader
 import com.example.exotube.domain.repository.MediaRepository
+import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.download.MediaStoreSaver
 import com.example.exotube.download.WorkManagerDownloadScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -32,12 +35,17 @@ class AppContainer(context: Context) {
     /** Vive lo mismo que la app: para trabajo que no pertenece a ninguna pantalla. */
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val mediaExtractor = MediaExtractorManager(appContext)
+    /** El motor yt-dlp, compartido por las descargas y por la pestaña Explorar. */
+    val ytDlpEngine = YtDlpEngine(appContext)
+
+    private val mediaExtractor = MediaExtractorManager(ytDlpEngine)
 
     // Para diseñar la UI sin red ni yt-dlp, cámbialo por FakeMediaRepository().
     val mediaRepository: MediaRepository get() = mediaExtractor
 
     val mediaDownloader: MediaDownloader get() = mediaExtractor
+
+    val onlineCatalog: OnlineCatalogRepository by lazy { YtDlpCatalog(ytDlpEngine) }
 
     val downloadScheduler: DownloadScheduler by lazy { WorkManagerDownloadScheduler(appContext) }
 

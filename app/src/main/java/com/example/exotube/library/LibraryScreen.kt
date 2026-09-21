@@ -56,12 +56,14 @@ import com.example.exotube.domain.model.LibraryItem
 import com.example.exotube.domain.model.MediaType
 import com.example.exotube.ui.components.MediaRow
 import com.example.exotube.ui.components.RowAction
+import com.example.exotube.ui.components.SearchField
 import com.example.exotube.ui.theme.ExoTubeTheme
 
 /** Conecta el ViewModel con la pantalla. Reproducir y "añadir a playlist" los resuelve el padre. */
 @Composable
 fun LibraryRoute(
     nowPlayingUri: String?,
+    isPlaying: Boolean,
     onPlay: (items: List<LibraryItem>, startIndex: Int) -> Unit,
     onAddToPlaylist: (LibraryItem) -> Unit,
     contentPadding: PaddingValues,
@@ -87,8 +89,10 @@ fun LibraryRoute(
     LibraryScreen(
         state = state,
         nowPlayingUri = nowPlayingUri,
+        isPlaying = isPlaying,
         canReadPhoneMusic = canReadPhoneMusic,
         onFilterSelected = viewModel::onFilterSelected,
+        onQueryChange = viewModel::onQueryChange,
         onItemClick = { index -> onPlay(state.visibleItems, index) },
         onAddToPlaylist = onAddToPlaylist,
         onAllowPhoneMusic = { requestPermission.launch(AudioLibraryPermission.name) },
@@ -101,8 +105,10 @@ fun LibraryRoute(
 fun LibraryScreen(
     state: LibraryUiState,
     nowPlayingUri: String?,
+    isPlaying: Boolean,
     canReadPhoneMusic: Boolean,
     onFilterSelected: (LibraryFilter) -> Unit,
+    onQueryChange: (String) -> Unit,
     onItemClick: (index: Int) -> Unit,
     onAddToPlaylist: (LibraryItem) -> Unit,
     onAllowPhoneMusic: () -> Unit,
@@ -111,6 +117,13 @@ fun LibraryScreen(
 ) {
     LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
         item { LibraryHeader(state) }
+        item {
+            SearchField(
+                query = state.query,
+                onQueryChange = onQueryChange,
+                hint = stringResource(R.string.library_search_hint),
+            )
+        }
         item { FilterRow(selected = state.filter, onFilterSelected = onFilterSelected) }
         // Solo tiene sentido ofrecerlo mientras se ve audio: los videos nunca salen del teléfono.
         if (!canReadPhoneMusic && state.filter != LibraryFilter.VIDEO) {
@@ -124,13 +137,14 @@ fun LibraryScreen(
                 }
             }
             state.visibleItems.isEmpty() -> item {
-                EmptyLibrary(isFiltered = state.allItems.isNotEmpty(), modifier = Modifier.fillParentMaxHeight(0.7f))
+                EmptyLibrary(state = state, modifier = Modifier.fillParentMaxHeight(0.7f))
             }
             else -> itemsIndexed(state.visibleItems, key = { _, item -> item.uri }) { index, item ->
                 MediaRow(
                     item = item,
                     isCurrent = item.uri == nowPlayingUri,
                     onClick = { onItemClick(index) },
+                    isPlaying = isPlaying,
                     actions = listOf(
                         RowAction(R.string.add_to_playlist, R.drawable.ic_playlist_add) { onAddToPlaylist(item) },
                     ),
@@ -230,8 +244,9 @@ private fun FilterRow(selected: LibraryFilter, onFilterSelected: (LibraryFilter)
     }
 }
 
+/** Tres situaciones distintas con la misma pinta: sin descargas, sin resultados de filtro, o de búsqueda. */
 @Composable
-private fun EmptyLibrary(isFiltered: Boolean, modifier: Modifier = Modifier) {
+private fun EmptyLibrary(state: LibraryUiState, modifier: Modifier = Modifier) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -247,7 +262,9 @@ private fun EmptyLibrary(isFiltered: Boolean, modifier: Modifier = Modifier) {
                 .background(MaterialTheme.colorScheme.primaryContainer),
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_library_music),
+                painter = painterResource(
+                    if (state.isSearching) R.drawable.ic_search else R.drawable.ic_library_music,
+                ),
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(44.dp),
@@ -255,17 +272,24 @@ private fun EmptyLibrary(isFiltered: Boolean, modifier: Modifier = Modifier) {
         }
         Spacer(Modifier.height(24.dp))
         Text(
-            text = stringResource(if (isFiltered) R.string.library_empty_filtered else R.string.library_empty_title),
+            text = when {
+                state.isSearching -> stringResource(R.string.library_empty_search, state.query.trim())
+                state.allItems.isNotEmpty() -> stringResource(R.string.library_empty_filtered)
+                else -> stringResource(R.string.library_empty_title)
+            },
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.home_instructions),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+        // Las instrucciones solo ayudan cuando todavía no hay nada descargado.
+        if (!state.isSearching && state.allItems.isEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.home_instructions),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -300,8 +324,10 @@ private fun LibraryScreenPreview() {
         LibraryScreen(
             state = LibraryUiState(allItems = previewItems, isLoading = false),
             nowPlayingUri = "content://preview/2",
+            isPlaying = true,
             canReadPhoneMusic = true,
             onFilterSelected = {},
+            onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
             onAllowPhoneMusic = {},
@@ -318,8 +344,30 @@ private fun LibraryScreenWithBannerPreview() {
         LibraryScreen(
             state = LibraryUiState(allItems = previewItems.take(2), isLoading = false),
             nowPlayingUri = null,
+            isPlaying = false,
             canReadPhoneMusic = false,
             onFilterSelected = {},
+            onQueryChange = {},
+            onItemClick = {},
+            onAddToPlaylist = {},
+            onAllowPhoneMusic = {},
+            contentPadding = PaddingValues(),
+        )
+    }
+}
+
+/** Una búsqueda que no encuentra nada. */
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+private fun LibrarySearchWithoutResultsPreview() {
+    ExoTubeTheme {
+        LibraryScreen(
+            state = LibraryUiState(allItems = previewItems, query = "reggaeton", isLoading = false),
+            nowPlayingUri = null,
+            isPlaying = false,
+            canReadPhoneMusic = true,
+            onFilterSelected = {},
+            onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
             onAllowPhoneMusic = {},
@@ -335,8 +383,10 @@ private fun EmptyLibraryPreview() {
         LibraryScreen(
             state = LibraryUiState(isLoading = false),
             nowPlayingUri = null,
+            isPlaying = false,
             canReadPhoneMusic = true,
             onFilterSelected = {},
+            onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
             onAllowPhoneMusic = {},

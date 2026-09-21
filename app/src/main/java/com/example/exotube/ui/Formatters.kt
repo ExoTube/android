@@ -26,3 +26,18 @@ fun formatTotalDuration(totalMillis: Long): String {
     val minutes = totalMinutes % 60
     return if (hours > 0) "$hours h $minutes min" else "$minutes min"
 }
+
+/**
+ * Números grandes en corto: 9800 -> "9,8 mil"; 1240000 -> "1,2 M".
+ * Por debajo de diez se deja un decimal; por encima estorba más que informa.
+ */
+fun formatCompactCount(count: Long): String = when {
+    count < 1_000 -> count.toString()
+    count < 1_000_000 -> shorten(count / 1_000.0, "mil")
+    else -> shorten(count / 1_000_000.0, "M")
+}
+
+private fun shorten(value: Double, suffix: String): String {
+    val pattern = if (value >= 10) "%.0f" else "%.1f"
+    return "${pattern.format(Locale.getDefault(), value)} $suffix"
+}

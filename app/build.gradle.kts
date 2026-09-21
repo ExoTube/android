@@ -38,8 +38,10 @@ android {
         applicationId = "com.example.exotube"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+        // versionCode es el número que compara Android para saber si una versión es más nueva:
+        // sube de uno en uno y nunca se repite. versionName es solo lo que ve el usuario.
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

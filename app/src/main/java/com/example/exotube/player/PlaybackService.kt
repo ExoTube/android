@@ -2,16 +2,22 @@ package com.example.exotube.player
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.net.toUri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionError
+import androidx.media3.session.SessionResult
 import com.example.exotube.MainActivity
 import com.example.exotube.R
 import com.google.common.util.concurrent.Futures
@@ -30,6 +36,13 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var artworkLoader: MediaFileBitmapLoader? = null
 
+    /**
+     * Repeticiones que quedan por hacer: 0 = sin bucle, -1 = para siempre.
+     * La cuenta vive aquí, y no en la pantalla, porque la pantalla puede cerrarse mientras la
+     * música sigue sonando: si la llevara ella, "repetir 2 veces" se volvería infinito.
+     */
+    private var repeatsLeft = 0
+
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
@@ -42,6 +55,7 @@ class PlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(true) // pausa si se desconectan los auriculares
             .build()
+        player.addListener(RepeatCountdown())
 
         // Tocar la notificación abre la app.
         val openApp = PendingIntent.getActivity(
@@ -81,11 +95,70 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
+    /** Activa el bucle que pidió la pantalla y publica cuántas repeticiones quedan. */
+    private fun applyRepeatPlan(plan: RepeatPlan) {
+        repeatsLeft = plan.repeats
+        mediaSession?.player?.repeatMode =
+            if (plan == RepeatPlan.OFF) Player.REPEAT_MODE_OFF else Player.REPEAT_MODE_ONE
+        publishRepeatsLeft()
+    }
+
+    /** Los "extras" de la sesión son un Bundle compartido: al cambiarlo, la pantalla se entera. */
+    private fun publishRepeatsLeft() {
+        mediaSession?.setSessionExtras(RepeatSession.bundleOfRepeats(repeatsLeft))
+    }
+
+    /** Descuenta una repetición cada vez que la canción vuelve a empezar por el bucle. */
+    private inner class RepeatCountdown : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // Solo cuentan las vueltas del bucle: pasar a la siguiente canción o elegir otra, no.
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
+            if (repeatsLeft <= 0) return // 0 = sin bucle; -1 = para siempre, no hay nada que contar
+            repeatsLeft--
+            if (repeatsLeft == 0) mediaSession?.player?.repeatMode = Player.REPEAT_MODE_OFF
+            publishRepeatsLeft()
+        }
+    }
+
     private inner class SessionCallback : MediaSession.Callback {
+        /**
+         * Además de los comandos estándar (play, pausa, siguiente…), damos permiso al controlador
+         * para usar el nuestro. Si no se declara aquí, Media3 lo rechaza.
+         */
+        override fun onConnect(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+        ): MediaSession.ConnectionResult {
+            val commands = MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                .add(SessionCommand(RepeatSession.COMMAND_SET_PLAN, Bundle.EMPTY))
+                .build()
+            return MediaSession.ConnectionResult.AcceptedResultBuilder(session, controller)
+                .setAvailableSessionCommands(commands)
+                .setSessionExtras(RepeatSession.bundleOfRepeats(repeatsLeft)) // estado inicial
+                .build()
+        }
+
+        override fun onCustomCommand(
+            session: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            customCommand: SessionCommand,
+            args: Bundle,
+        ): ListenableFuture<SessionResult> {
+            if (customCommand.customAction != RepeatSession.COMMAND_SET_PLAN) {
+                return Futures.immediateFuture(SessionResult(SessionError.ERROR_NOT_SUPPORTED))
+            }
+            applyRepeatPlan(RepeatSession.planOf(args))
+            return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+        }
+
         /**
          * Los controladores envían los MediaItem; aquí decidimos qué se reproduce de verdad.
          * Solo aceptamos pedidos de nuestra propia app (el servicio es visible para otras apps,
-         * p. ej. la del reloj o el coche) y reconstruimos la Uri a partir del mediaId.
+         * p. ej. la del reloj o el coche).
+         *
+         * La Uri no sobrevive al viaje entre la app y el servicio (son procesos distintos para
+         * Android), pero requestMetadata sí: de ahí sale la dirección de un video en línea. En un
+         * archivo del teléfono no hace falta, porque su mediaId ya ES su Uri.
          */
         override fun onAddMediaItems(
             mediaSession: MediaSession,
@@ -93,7 +166,11 @@ class PlaybackService : MediaSessionService() {
             mediaItems: List<MediaItem>,
         ): ListenableFuture<List<MediaItem>> {
             if (controller.packageName != packageName) return Futures.immediateFuture(emptyList())
-            return Futures.immediateFuture(mediaItems.map { it.buildUpon().setUri(it.mediaId).build() })
+            return Futures.immediateFuture(
+                mediaItems.map { item ->
+                    item.buildUpon().setUri(item.requestMetadata.mediaUri ?: item.mediaId.toUri()).build()
+                },
+            )
         }
     }
 }

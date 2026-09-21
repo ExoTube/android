@@ -23,9 +23,9 @@ class EngineUpdateWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val extractor = (applicationContext as ExoTubeApp).container.mediaExtractor
+        val engine = (applicationContext as ExoTubeApp).container.ytDlpEngine
         return try {
-            val status = extractor.updateEngine()
+            val status = engine.update()
             Log.i(TAG, "Actualización de yt-dlp: $status")
             Result.success()
         } catch (e: CancellationException) {

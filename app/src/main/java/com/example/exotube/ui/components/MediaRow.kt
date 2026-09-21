@@ -52,6 +52,7 @@ fun MediaRow(
     isCurrent: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isPlaying: Boolean = false,
     actions: List<RowAction> = emptyList(),
 ) {
     val context = LocalContext.current
@@ -86,12 +87,14 @@ fun MediaRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        // La fila que está sonando lleva el ecualizador: se mueve si suena, quieto si está en pausa.
         if (isCurrent) {
-            Icon(
-                painter = painterResource(R.drawable.ic_graphic_eq),
+            PlayingBars(
+                isPlaying = isPlaying,
                 contentDescription = stringResource(R.string.player_now_playing),
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 12.dp),
+                modifier = Modifier
+                    .padding(start = 12.dp)
+                    .size(width = 18.dp, height = 16.dp),
             )
         }
         if (actions.isNotEmpty()) RowMenu(actions)

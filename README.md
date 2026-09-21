@@ -4,20 +4,37 @@ App Android gratuita y de código abierto para descargar videos y música desde 
 Instagram, X y Facebook. Sin anuncios y sin registro.
 
 Se usa desde el botón **Compartir** de cualquier app: eliges la calidad y el archivo queda en tu
-teléfono. Incluye un reproductor con playlists.
+teléfono. También se pueden buscar y ver videos en línea, y escuchar lo descargado sin conexión.
 
 Página de descarga: https://exotube.github.io
 
 ## Funciones
 
+### Descargar
+
 - Recibe enlaces compartidos desde otras apps y muestra las calidades disponibles.
-- Descarga video (hasta 4K) o solo el audio en MP3.
+- Descarga video (hasta 4K) o solo el audio en MP3, con la carátula incrustada.
 - Descarga en segundo plano, con progreso en la notificación y opción de cancelar.
 - Guarda los archivos en `Movies/ExoTube` y `Music/ExoTube`, visibles en la galería y en cualquier
   reproductor de música.
-- Reproductor propio con controles en la notificación y en la pantalla de bloqueo.
-- Playlists con foto propia, o con la carátula de una de sus canciones.
 - Historial de descargas anónimo (opcional).
+
+### Explorar
+
+- Busca videos en YouTube y los reproduce en línea, sin anuncios.
+- Modo "ahorrar datos": trae solo el sonido.
+- Un toque para descargar cualquier resultado.
+
+Los enlaces de reproducción en línea los firma la plataforma y **caducan** al cabo de unas horas,
+así que se piden justo antes de reproducir. Si un video falla, se vuelve a tocar y listo.
+
+### Reproducir
+
+- Reproductor propio con controles en la notificación y en la pantalla de bloqueo.
+- Orden aleatorio y bucle de 1 vez, 2 veces o siempre.
+- Buscador de la biblioteca que no distingue mayúsculas ni tildes.
+- Playlists con foto propia, o con la carátula de una de sus canciones.
+- Funciona sin conexión: lo descargado no depende de internet.
 
 ## Cómo está construido
 
@@ -25,7 +42,7 @@ Página de descarga: https://exotube.github.io
 |---|---|
 | Interfaz | Jetpack Compose y Material 3 |
 | Arquitectura | MVVM, con StateFlow y corrutinas |
-| Extracción y descarga | yt-dlp mediante [youtubedl-android](https://github.com/JunkFood02/youtubedl-android) |
+| Búsqueda, extracción y descarga | yt-dlp mediante [youtubedl-android](https://github.com/JunkFood02/youtubedl-android) |
 | Trabajo en segundo plano | WorkManager con Foreground Service |
 | Reproductor | Media3 (ExoPlayer y MediaSession) |
 | Base de datos local | Room (playlists) |
@@ -39,6 +56,7 @@ data/     Implementaciones: yt-dlp, MediaStore, Room, Supabase
 download/ Worker de descarga, notificaciones y guardado en la galería
 player/   Servicio de reproducción y su interfaz
 library/  Pantalla de biblioteca
+explore/  Pantalla de búsqueda y reproducción en línea
 playlist/ Pantallas de playlists
 ui/       Tema, componentes compartidos y navegación
 ```

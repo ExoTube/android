@@ -54,6 +54,7 @@ import com.example.exotube.ui.formatTotalDuration
 @Composable
 fun PlaylistDetailRoute(
     nowPlayingUri: String?,
+    isPlaying: Boolean,
     onPlay: (items: List<LibraryItem>, startIndex: Int, shuffle: Boolean) -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
@@ -77,6 +78,7 @@ fun PlaylistDetailRoute(
             PlaylistDetailScreen(
                 playlist = playlist,
                 nowPlayingUri = nowPlayingUri,
+                isPlaying = isPlaying,
                 onBack = onBack,
                 onPlay = { index -> onPlay(playlist.items, index, false) },
                 onShuffle = { onPlay(playlist.items, 0, true) },
@@ -113,6 +115,7 @@ fun PlaylistDetailRoute(
 fun PlaylistDetailScreen(
     playlist: PlaylistDetail,
     nowPlayingUri: String?,
+    isPlaying: Boolean,
     onBack: () -> Unit,
     onPlay: (index: Int) -> Unit,
     onShuffle: () -> Unit,
@@ -154,6 +157,7 @@ fun PlaylistDetailScreen(
                     item = item,
                     isCurrent = item.uri == nowPlayingUri,
                     onClick = { onPlay(index) },
+                    isPlaying = isPlaying,
                     actions = listOf(
                         RowAction(R.string.remove_from_playlist, R.drawable.ic_playlist_remove) { onRemove(item) },
                     ),

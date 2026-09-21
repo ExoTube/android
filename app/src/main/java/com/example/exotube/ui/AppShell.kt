@@ -1,5 +1,6 @@
 package com.example.exotube.ui
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
@@ -18,16 +19,19 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.compose.state.rememberCurrentMediaItemState
+import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -37,6 +41,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.exotube.R
 import com.example.exotube.domain.model.LibraryItem
+import com.example.exotube.explore.ExploreRoute
 import com.example.exotube.library.LibraryRoute
 import com.example.exotube.player.MiniPlayer
 import com.example.exotube.player.NowPlayingScreen
@@ -46,6 +51,7 @@ import com.example.exotube.playlist.CreatePlaylistDialog
 import com.example.exotube.playlist.PlaylistDetailRoute
 import com.example.exotube.playlist.PlaylistsScreen
 import com.example.exotube.playlist.PlaylistsViewModel
+import com.example.exotube.ui.navigation.ExploreDestination
 import com.example.exotube.ui.navigation.LibraryDestination
 import com.example.exotube.ui.navigation.PlaylistDestination
 import com.example.exotube.ui.navigation.PlaylistsDestination
@@ -53,6 +59,7 @@ import com.example.exotube.ui.navigation.PlaylistsDestination
 /** Pestañas de la barra inferior. */
 private enum class TopLevelTab(val destination: Any, @StringRes val label: Int, @DrawableRes val icon: Int) {
     LIBRARY(LibraryDestination, R.string.nav_library, R.drawable.ic_library_music),
+    EXPLORE(ExploreDestination, R.string.nav_explore, R.drawable.ic_explore),
     PLAYLISTS(PlaylistsDestination, R.string.nav_playlists, R.drawable.ic_queue_music),
 }
 
@@ -67,6 +74,10 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
     val player by playerViewModel.player.collectAsStateWithLifecycle()
     val playlistsState by playlistsViewModel.uiState.collectAsStateWithLifecycle()
     val nowPlayingUri = player?.let { rememberCurrentMediaItemState(it).mediaItem?.mediaId }
+    val repeatPlan by playerViewModel.repeatPlan.collectAsStateWithLifecycle()
+    // "Muestra el botón de reproducir" equivale a "no está sonando": lo usan el ecualizador de
+    // cada fila y la carátula que late, para animarse solo cuando de verdad suena la música.
+    val isPlaying = player?.let { !rememberPlayPauseButtonState(it).showPlay } == true
 
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var itemForPlaylist by remember { mutableStateOf<LibraryItem?>(null) }
@@ -76,6 +87,15 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
     val isTopLevel = currentDestination == null || TopLevelTab.entries.any { currentDestination.isOn(it) }
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
+
+    // Si el reproductor falla (lo habitual: un enlace en línea que caducó), hay que decirlo:
+    // si no, el usuario toca un video y no pasa nada.
+    val context = LocalContext.current
+    LaunchedEffect(playerViewModel) {
+        playerViewModel.errors.collect {
+            Toast.makeText(context, R.string.player_error, Toast.LENGTH_LONG).show()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -101,8 +121,19 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
                 composable<LibraryDestination> {
                     LibraryRoute(
                         nowPlayingUri = nowPlayingUri,
+                        isPlaying = isPlaying,
                         onPlay = { items, index -> playerViewModel.playQueue(items, index) },
                         onAddToPlaylist = { itemForPlaylist = it },
+                        contentPadding = padding,
+                    )
+                }
+                composable<ExploreDestination> {
+                    ExploreRoute(
+                        onPlayOnline = { video, stream ->
+                            playerViewModel.playOnline(video, stream)
+                            showNowPlaying = true // lo que se toca se ve: abrimos el reproductor
+                        },
+                        onGoToLibrary = { navController.navigate(LibraryDestination) },
                         contentPadding = padding,
                     )
                 }
@@ -117,6 +148,7 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
                 composable<PlaylistDestination> {
                     PlaylistDetailRoute(
                         nowPlayingUri = nowPlayingUri,
+                        isPlaying = isPlaying,
                         onPlay = playerViewModel::playQueue,
                         onBack = { navController.popBackStack() },
                         contentPadding = padding,
@@ -131,7 +163,14 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
             enter = slideInVertically { it },
             exit = slideOutVertically { it },
         ) {
-            player?.let { NowPlayingScreen(it, onCollapse = { showNowPlaying = false }) }
+            player?.let {
+                NowPlayingScreen(
+                    player = it,
+                    repeatPlan = repeatPlan,
+                    onCycleRepeat = playerViewModel::cycleRepeatPlan,
+                    onCollapse = { showNowPlaying = false },
+                )
+            }
         }
     }
 

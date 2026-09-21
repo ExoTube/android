@@ -9,6 +9,9 @@ import kotlinx.serialization.Serializable
 data object LibraryDestination
 
 @Serializable
+data object ExploreDestination
+
+@Serializable
 data object PlaylistsDestination
 
 @Serializable

@@ -26,8 +26,9 @@ import com.example.exotube.domain.model.MediaType
 
 /**
  * Carátula de un elemento de la biblioteca. Por debajo siempre hay un degradado verde con un
- * icono; encima, en los videos, Coil dibuja un fotograma. Si el fotograma no se puede leer,
- * simplemente se ve el degradado: nunca queda un hueco vacío.
+ * icono; encima, Coil dibuja la imagen real: la portada incrustada en las canciones y un
+ * fotograma en los videos. Si no se puede leer, simplemente se ve el degradado: nunca queda
+ * un hueco vacío.
  */
 @Composable
 fun MediaArtwork(
@@ -51,11 +52,18 @@ fun MediaArtwork(
             tint = colors.primary,
             modifier = Modifier.size(iconSize),
         )
-        if (type == MediaType.VIDEO && uri != null) {
+        if (uri != null) {
             val context = LocalPlatformContext.current
-            // Fotograma al 10 % del video: el primero suele ser negro (fundido de entrada).
-            val request = remember(uri) {
-                ImageRequest.Builder(context).data(uri).videoFramePercent(0.1).build()
+            val request = remember(uri, type) {
+                ImageRequest.Builder(context)
+                    .data(uri)
+                    .apply {
+                        // En un video, el fotograma al 10 %: el primero suele ser negro (fundido
+                        // de entrada). En una canción no hace falta nada: de la portada incrustada
+                        // se encarga EmbeddedArtworkFetcher.
+                        if (type == MediaType.VIDEO) videoFramePercent(0.1)
+                    }
+                    .build()
             }
             AsyncImage(
                 model = request,
