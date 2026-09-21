@@ -29,14 +29,23 @@ internal object YtDlpErrorMapper {
         if (error is MediaError) return error
 
         val message = error.message.orEmpty()
-        // stderr también trae advertencias ("WARNING: …"): nos quedamos con la línea de error.
-        val errorLine = message.lineSequence().lastOrNull { it.startsWith("ERROR") } ?: message
-        val text = errorLine.lowercase()
+        val text = message.lowercase()
+
+        // Los fallos de red se reconocen en cualquier parte del texto: esas frases no aparecen
+        // por casualidad.
+        if (networkHints.any { it in text }) return MediaError.NoConnection
+
+        // Para lo demás solo vale la línea "ERROR:", que es donde yt-dlp explica qué pasa con el
+        // enlace. Si no hay ninguna, lo que falló fue el propio motor (un Traceback de Python), y
+        // buscar pistas en ese texto engaña: entre las rutas de sus archivos está "cookies.py",
+        // que nos haría decirle al usuario que el video es privado.
+        val errorLine = message.lineSequence().lastOrNull { it.startsWith("ERROR") }
+            ?.lowercase()
+            ?: return MediaError.Unknown(error)
 
         return when {
-            networkHints.any { it in text } -> MediaError.NoConnection
-            noMediaHints.any { it in text } -> MediaError.NoMediaFound
-            restrictedHints.any { it in text } -> MediaError.PrivateContent
+            noMediaHints.any { it in errorLine } -> MediaError.NoMediaFound
+            restrictedHints.any { it in errorLine } -> MediaError.PrivateContent
             else -> MediaError.Unknown(error)
         }
     }

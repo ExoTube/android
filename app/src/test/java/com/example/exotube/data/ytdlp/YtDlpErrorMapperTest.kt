@@ -51,4 +51,33 @@ class YtDlpErrorMapperTest {
     fun `un MediaError pasa sin cambios`() {
         assertEquals(MediaError.NoMediaFound, YtDlpErrorMapper.map(MediaError.NoMediaFound))
     }
+
+    /**
+     * Si se rompe el propio yt-dlp, Python escupe un Traceback sin ninguna línea "ERROR:".
+     * Ese texto lleva las rutas de sus archivos, y una se llama "cookies.py": buscar pistas ahí
+     * hacía que la app dijera "este contenido es privado" cuando el problema era otro.
+     */
+    @Test
+    fun `un fallo del motor no se confunde con contenido privado`() {
+        val stderr = """
+            Traceback (most recent call last):
+              File "/data/user/0/com.example.exotube/no_backup/youtubedl-android/yt-dlp/yt_dlp/cookies.py", line 33, in <module>
+              File "<frozen zipimport>", line 538, in _get_data
+            zipimport.ZipImportError: bad local file header: '/data/user/0/com.example.exotube/no_backup/youtubedl-android/yt-dlp'
+        """.trimIndent()
+
+        val error = map(stderr)
+
+        assertTrue(error is MediaError.Unknown)
+        assertTrue(error.isRetryable)
+    }
+
+    /** Un corte de red sigue detectándose aunque el texto no traiga una línea "ERROR:". */
+    @Test
+    fun `sin conexion tambien fuera de la linea ERROR`() {
+        assertEquals(
+            MediaError.NoConnection,
+            map("<urlopen error [Errno 7] No address associated with hostname>"),
+        )
+    }
 }
