@@ -6,6 +6,7 @@ import coil3.PlatformContext
 import coil3.SingletonImageLoader
 import coil3.video.VideoFrameDecoder
 import com.example.exotube.data.library.EmbeddedArtworkFetcher
+import com.example.exotube.data.update.UpdateCheckWorker
 import com.example.exotube.data.ytdlp.EngineUpdateWorker
 import com.example.exotube.di.AppContainer
 import kotlinx.coroutines.launch
@@ -24,6 +25,8 @@ class ExoTubeApp : Application(), SingletonImageLoader.Factory {
         container.applicationScope.launch { container.ytDlpEngine.warmUp() }
         // Los sitios cambian a menudo: revisamos una vez al día si hay yt-dlp nuevo.
         EngineUpdateWorker.schedule(this)
+        // Y una vez al día también, si hay una versión nueva de la propia app.
+        UpdateCheckWorker.schedule(this)
     }
 
     /**

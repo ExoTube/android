@@ -46,6 +46,7 @@
 
     <!-- Navegación y acciones comunes -->
     <string name="nav_library">Biblioteca</string>
+    <string name="nav_albums">Álbumes</string>
     <string name="nav_playlists">Playlists</string>
     <string name="navigate_back">Volver</string>
     <string name="more_options">Más opciones</string>
@@ -53,6 +54,48 @@
     <string name="action_create">Crear</string>
     <string name="action_save">Guardar</string>
     <string name="action_delete">Eliminar</string>
+
+    <!-- Recortar audio -->
+    <string name="trim_action">Recortar audio</string>
+    <string name="trim_title">Recortar audio</string>
+    <string name="trim_start">Inicio</string>
+    <string name="trim_end">Fin</string>
+    <string name="trim_fragment">Dura %1$s</string>
+    <string name="trim_preview">Escuchar el fragmento</string>
+    <string name="trim_stop_preview">Detener</string>
+    <string name="trim_name_label">Nombre del audio nuevo</string>
+    <string name="trim_name_hint">Se guarda aparte, en Music/ExoTube. La canción original no se toca.</string>
+    <string name="trim_save">Guardar el recorte</string>
+    <string name="trim_saved">Recorte guardado en Music/ExoTube</string>
+    <string name="trim_failed">No se pudo recortar. %1$s</string>
+
+    <!-- Cambiar la portada de una cancion -->
+    <string name="cover_action">Cambiar portada</string>
+    <string name="cover_working">Cambiando la portada…</string>
+    <string name="cover_changed">Portada cambiada</string>
+    <string name="cover_failed">No se pudo cambiar la portada. %1$s</string>
+
+    <!-- Cambiar el nombre de una cancion -->
+    <string name="rename_action">Cambiar nombre</string>
+    <string name="rename_title">Cambiar el nombre</string>
+    <string name="rename_label">Nombre de la canción</string>
+    <string name="rename_hint">Se cambia también el nombre del archivo.</string>
+    <string name="rename_working">Cambiando el nombre…</string>
+    <string name="rename_done">Nombre cambiado</string>
+    <string name="rename_failed">No se pudo cambiar el nombre. %1$s</string>
+
+    <!-- Álbumes -->
+    <plurals name="albums_count">
+        <item quantity="one">%d álbum</item>
+        <item quantity="many">%d álbumes</item>
+        <item quantity="other">%d álbumes</item>
+    </plurals>
+    <string name="albums_group_by_album">Por álbum</string>
+    <string name="albums_group_by_artist">Por artista</string>
+    <string name="albums_untagged">Randoms</string>
+    <string name="albums_untagged_hint">Estas canciones no traen el álbum etiquetado, así que se agrupan aquí.</string>
+    <string name="albums_empty_title">Todavía no hay álbumes</string>
+    <string name="albums_empty_body">Descarga música o da permiso para ver la del teléfono: ExoTube los agrupa solo, por sus etiquetas.</string>
 
     <!-- Playlists -->
     <plurals name="playlist_count">
@@ -94,6 +137,24 @@
     <string name="player_next">Siguiente</string>
     <string name="player_previous">Anterior</string>
     <string name="player_error">No se pudo reproducir. Si es un video en línea, vuelve a tocarlo: los enlaces caducan al cabo de unas horas.</string>
+    <string name="player_picture_in_picture">Ver en ventana flotante</string>
+    <string name="player_fullscreen">Pantalla completa</string>
+    <string name="player_fullscreen_exit">Salir de pantalla completa</string>
+
+    <!-- Ecualizador -->
+    <string name="equalizer_title">Ecualizador</string>
+    <string name="equalizer_open">Abrir el ecualizador</string>
+    <string name="equalizer_unavailable">Tu teléfono no ofrece ecualizador. La música se reproduce igual, sin retoques.</string>
+    <string name="equalizer_enable">Activar</string>
+    <string name="equalizer_presets">Ajustes del teléfono</string>
+    <string name="equalizer_bands">Bandas</string>
+    <string name="equalizer_band_hz">%1$d Hz</string>
+    <string name="equalizer_band_khz">%1$s kHz</string>
+    <string name="equalizer_level_db">%1$s dB</string>
+    <string name="equalizer_loudness">Volumen extra</string>
+    <string name="equalizer_loudness_hint">Sube el volumen por encima del máximo del teléfono. Pasado cierto punto el sonido se distorsiona.</string>
+    <string name="equalizer_reset">Restablecer</string>
+    <string name="equalizer_close">Cerrar</string>
     <string name="player_shuffle_off">Activar orden aleatorio</string>
     <string name="player_shuffle_on">Orden aleatorio activado</string>
     <string name="player_repeat_off">Activar bucle</string>
@@ -114,6 +175,7 @@
     <!-- Notificaciones de descarga -->
     <string name="channel_downloads_progress">Descargas en curso</string>
     <string name="channel_downloads_result">Descargas finalizadas</string>
+    <string name="channel_updates">Actualizaciones de ExoTube</string>
     <string name="download_preparing">Preparando descarga…</string>
     <string name="download_progress">%1$d %%</string>
     <string name="download_progress_eta">%1$d %% · quedan %2$s</string>
@@ -130,4 +192,26 @@
     <string name="error_no_connection">Sin conexión a internet. Revisa tu red e inténtalo de nuevo.</string>
     <string name="error_unknown">No se pudo procesar el enlace. Inténtalo de nuevo más tarde.</string>
     <string name="error_storage_permission">Sin permiso de almacenamiento no se puede guardar el archivo.</string>
+
+    <!-- Actualizar la app desde la propia app -->
+    <string name="update_notification_title">ExoTube %1$s ya está disponible</string>
+    <string name="update_notification_text">Toca para ver qué trae y actualizar</string>
+    <string name="update_available_title">ExoTube %1$s ya está aquí</string>
+    <string name="update_available_size">%1$s · se instala encima, sin perder tus descargas ni tus playlists</string>
+    <string name="update_no_notes">Mejoras y corrección de fallos.</string>
+    <string name="update_download">Descargar e instalar</string>
+    <string name="update_later">Ahora no</string>
+    <string name="update_downloading">Descargando ExoTube %1$s</string>
+    <string name="update_downloading_percent">Descargando… %1$d %%</string>
+    <string name="update_downloading_start">Empezando la descarga…</string>
+    <string name="update_download_failed">No se pudo descargar. Comprueba tu conexión y vuelve a intentarlo.</string>
+    <string name="update_ready_title">ExoTube %1$s lista para instalar</string>
+    <string name="update_ready_text">Toca para instalarla</string>
+    <string name="update_install">Instalar</string>
+
+    <!-- Novedades, la primera vez que se abre la app despues de actualizarla -->
+    <string name="whats_new_title">Novedades de la %1$s</string>
+    <string name="whats_new_subtitle">Esto es lo que se ha añadido</string>
+    <string name="whats_new_continue">Empezar</string>
+    <string name="whats_new_notes">VIDEOS\n• Videoclips de verdad en Explorar, no solo el audio, hasta 1080p.\n• Pantalla completa en horizontal, en línea y con lo descargado.\n• Ventana flotante: el video sigue encima de otras apps al salir.\n• Los enlaces cargan más rápido y se recuerdan un rato.\n\nTU MÚSICA\n• Pestaña Álbumes: tus canciones agrupadas por álbum o por artista.\n• Recortar audio: quédate con el trozo que quieras, en un archivo aparte.\n• Cambiar la portada de una canción por la foto que elijas.\n• Cambiar el nombre de una canción.\n\nSONIDO\n• Ecualizador con refuerzo de volumen.\n\nY AHORA\n• ExoTube te avisa sola cuando hay una versión nueva y la instala desde aquí.</string>
 </resources>

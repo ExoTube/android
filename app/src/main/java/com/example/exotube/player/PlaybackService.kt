@@ -2,6 +2,7 @@ package com.example.exotube.player
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
@@ -18,6 +19,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
+import com.example.exotube.ExoTubeApp
 import com.example.exotube.MainActivity
 import com.example.exotube.R
 import com.google.common.util.concurrent.Futures
@@ -36,6 +38,9 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var artworkLoader: MediaFileBitmapLoader? = null
 
+    /** Ecualizador y volumen extra; los comparte con la pantalla de ajustes del reproductor. */
+    private val audioEffects by lazy { (application as ExoTubeApp).container.audioEffects }
+
     /**
      * Repeticiones que quedan por hacer: 0 = sin bucle, -1 = para siempre.
      * La cuenta vive aquí, y no en la pantalla, porque la pantalla puede cerrarse mientras la
@@ -46,6 +51,9 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         val player = ExoPlayer.Builder(this)
+            // Sabe leer archivos del teléfono y, además, juntar la imagen y el sonido de un
+            // video en línea que venga en dos direcciones distintas.
+            .setMediaSourceFactory(StreamingMediaSourceFactory(this))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -56,6 +64,13 @@ class PlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true) // pausa si se desconectan los auriculares
             .build()
         player.addListener(RepeatCountdown())
+
+        // Los efectos de audio no se aplican a una app, sino a una "sesión de audio": un número
+        // que identifica el flujo de sonido. Creamos la nuestra y se la damos al reproductor, en
+        // vez de esperar a que él elija una, para poder enganchar el ecualizador ya mismo.
+        val audioSessionId = (getSystemService(AUDIO_SERVICE) as AudioManager).generateAudioSessionId()
+        player.audioSessionId = audioSessionId
+        audioEffects.attachTo(audioSessionId)
 
         // Tocar la notificación abre la app.
         val openApp = PendingIntent.getActivity(
@@ -92,6 +107,7 @@ class PlaybackService : MediaSessionService() {
         mediaSession = null
         artworkLoader?.release()
         artworkLoader = null
+        audioEffects.release()
         super.onDestroy()
     }
 

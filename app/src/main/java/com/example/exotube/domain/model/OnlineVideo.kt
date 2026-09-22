@@ -18,13 +18,31 @@ data class OnlineVideo(
 )
 
 /**
- * Dirección directa del archivo que se está reproduciendo en línea.
+ * Direcciones con las que reproducir algo que sigue en internet.
  *
- * No es un enlace para compartir: es la dirección interna del servidor, va firmada y **caduca**
- * en unas horas. Por eso no se guarda en ningún sitio; se pide justo antes de reproducir.
+ * No son enlaces para compartir: son las direcciones internas del servidor, van firmadas y
+ * **caducan** en unas horas. Por eso se piden justo antes de reproducir.
+ *
+ * YouTube ya casi no ofrece archivos que traigan imagen y sonido juntos (y los que quedan son de
+ * 360p), así que lo normal es recibir dos direcciones separadas y que el reproductor las junte.
+ * A cambio, se puede ver en 1080p.
  */
-data class StreamSource(
-    val url: String,
-    /** false cuando solo se trajo el audio (modo ahorro de datos). */
-    val hasVideo: Boolean,
-)
+sealed interface StreamSource {
+
+    /** false cuando solo se trajo el sonido (modo ahorro de datos). */
+    val hasVideo: Boolean
+
+    /** Todas las direcciones que hay que descargar para reproducir esto. */
+    val urls: List<String>
+
+    /** Un solo archivo con todo lo que se va a reproducir. */
+    data class Single(val url: String, override val hasVideo: Boolean) : StreamSource {
+        override val urls: List<String> get() = listOf(url)
+    }
+
+    /** Imagen y sonido por separado; el reproductor los reproduce a la vez. */
+    data class Separate(val videoUrl: String, val audioUrl: String) : StreamSource {
+        override val hasVideo: Boolean get() = true
+        override val urls: List<String> get() = listOf(videoUrl, audioUrl)
+    }
+}

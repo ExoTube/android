@@ -41,3 +41,15 @@ private fun shorten(value: Double, suffix: String): String {
     val pattern = if (value >= 10) "%.0f" else "%.1f"
     return "${pattern.format(Locale.getDefault(), value)} $suffix"
 }
+
+/**
+ * 12345 -> "0:12.3". Para recortar hace falta ver las décimas: con solo los segundos no
+ * se puede afinar dónde empieza un estribillo.
+ */
+fun formatPreciseTime(millis: Long): String {
+    val total = millis.coerceAtLeast(0)
+    val minutes = total / 60_000
+    val seconds = (total % 60_000) / 1_000
+    val tenths = (total % 1_000) / 100
+    return "%d:%02d.%d".format(Locale.ROOT, minutes, seconds, tenths)
+}

@@ -12,6 +12,13 @@ data object LibraryDestination
 data object ExploreDestination
 
 @Serializable
+data object AlbumsDestination
+
+/** El id de un álbum es su propio nombre; vacío para el grupo de las canciones sin etiqueta. */
+@Serializable
+data class AlbumDestination(val albumId: String)
+
+@Serializable
 data object PlaylistsDestination
 
 @Serializable

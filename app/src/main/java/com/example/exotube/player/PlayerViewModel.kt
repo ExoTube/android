@@ -2,6 +2,7 @@ package com.example.exotube.player
 
 import android.app.Application
 import android.content.ComponentName
+import android.net.Uri
 import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -135,6 +136,15 @@ class PlayerViewModel(application: Application) : ViewModel() {
 }
 
 /**
+ * La dirección que se le pide reproducir al servicio. Cuando YouTube sirve la imagen y el sonido
+ * por separado, las dos viajan empaquetadas en una sola ([MergedStreamUri]).
+ */
+private fun StreamSource.playbackUri(): Uri = when (this) {
+    is StreamSource.Single -> url.toUri()
+    is StreamSource.Separate -> MergedStreamUri.encode(videoUrl, audioUrl).toUri()
+}
+
+/**
  * El mediaId es la Uri del archivo: viaja siempre hasta el servicio (que la convierte en la Uri a
  * reproducir) y la UI la usa para saber qué elemento de la lista está sonando.
  */
@@ -156,21 +166,27 @@ private fun LibraryItem.toMediaItem(): MediaItem = MediaItem.Builder()
  * Aquí el mediaId (el enlace público de YouTube) y la dirección que se reproduce son DISTINTOS:
  * la segunda caduca. La dirección viaja en requestMetadata porque es lo único que sobrevive al
  * paso de la app al servicio; ver PlaybackService.onAddMediaItems.
+ *
+ * Cuando YouTube sirve la imagen y el sonido por separado, las dos direcciones van empaquetadas
+ * en una sola Uri ([MergedStreamUri]), que el servicio vuelve a separar.
  */
-private fun OnlineVideo.toMediaItem(stream: StreamSource): MediaItem = MediaItem.Builder()
-    .setMediaId(url)
-    .setUri(stream.url)
-    .setRequestMetadata(
-        MediaItem.RequestMetadata.Builder().setMediaUri(stream.url.toUri()).build(),
-    )
-    .setMediaMetadata(
-        MediaMetadata.Builder()
-            .setTitle(title)
-            .setArtist(channel)
-            .setArtworkUri(thumbnailUrl?.toUri()) // la miniatura, que ya es una imagen de internet
-            .setMediaType(
-                if (stream.hasVideo) MediaMetadata.MEDIA_TYPE_VIDEO else MediaMetadata.MEDIA_TYPE_MUSIC,
-            )
-            .build(),
-    )
-    .build()
+private fun OnlineVideo.toMediaItem(stream: StreamSource): MediaItem {
+    val playbackUri = stream.playbackUri()
+    return MediaItem.Builder()
+        .setMediaId(url)
+        .setUri(playbackUri)
+        .setRequestMetadata(
+            MediaItem.RequestMetadata.Builder().setMediaUri(playbackUri).build(),
+        )
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(channel)
+                .setArtworkUri(thumbnailUrl?.toUri()) // la miniatura ya es una imagen de internet
+                .setMediaType(
+                    if (stream.hasVideo) MediaMetadata.MEDIA_TYPE_VIDEO else MediaMetadata.MEDIA_TYPE_MUSIC,
+                )
+                .build(),
+        )
+        .build()
+}

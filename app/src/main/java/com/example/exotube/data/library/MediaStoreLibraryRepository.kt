@@ -56,23 +56,29 @@ class MediaStoreLibraryRepository(context: Context) : LibraryRepository {
     private fun query(type: MediaType): List<LibraryItem> {
         val collection = collection(type)
         // En Android 10+ la carpeta está en RELATIVE_PATH ("Music/ExoTube/"); antes, en la ruta completa.
-        val pathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val usesRelativePath = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val pathColumn = if (usesRelativePath) {
             MediaStore.MediaColumns.RELATIVE_PATH
         } else {
             @Suppress("DEPRECATION") MediaStore.MediaColumns.DATA
         }
         val artistColumn = if (type == MediaType.VIDEO) MediaStore.Video.Media.ARTIST else MediaStore.Audio.Media.ARTIST
         val durationColumn = if (type == MediaType.VIDEO) MediaStore.Video.Media.DURATION else MediaStore.Audio.Media.DURATION
-        val projection = arrayOf(
-            MediaStore.MediaColumns._ID,
-            MediaStore.MediaColumns.DISPLAY_NAME,
-            MediaStore.MediaColumns.TITLE,
-            MediaStore.MediaColumns.SIZE,
-            MediaStore.MediaColumns.DATE_ADDED,
-            artistColumn,
-            durationColumn,
-            pathColumn,
-        )
+        val projection = buildList {
+            add(MediaStore.MediaColumns._ID)
+            add(MediaStore.MediaColumns.DISPLAY_NAME)
+            add(MediaStore.MediaColumns.TITLE)
+            add(MediaStore.MediaColumns.SIZE)
+            add(MediaStore.MediaColumns.DATE_ADDED)
+            add(artistColumn)
+            add(durationColumn)
+            add(pathColumn)
+            // Álbum y número de pista solo existen en el audio: un video no pertenece a un disco.
+            if (type == MediaType.AUDIO) {
+                add(MediaStore.Audio.Media.ALBUM)
+                add(MediaStore.Audio.Media.TRACK)
+            }
+        }.toTypedArray()
         val (selection, arguments) = selectionFor(type, pathColumn)
 
         val items = mutableListOf<LibraryItem>()
@@ -85,6 +91,9 @@ class MediaStoreLibraryRepository(context: Context) : LibraryRepository {
             val artistIndex = cursor.getColumnIndexOrThrow(artistColumn)
             val durationIndex = cursor.getColumnIndexOrThrow(durationColumn)
             val pathIndex = cursor.getColumnIndexOrThrow(pathColumn)
+            // getColumnIndex (y no ...OrThrow): en los videos estas columnas no se piden y da -1.
+            val albumIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+            val trackIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
 
             while (cursor.moveToNext()) {
                 val id = cursor.getLong(idIndex)
@@ -94,12 +103,17 @@ class MediaStoreLibraryRepository(context: Context) : LibraryRepository {
                     uri = ContentUris.withAppendedId(collection, id).toString(),
                     title = cursor.getString(titleIndex)?.takeIf { it.isNotBlank() }
                         ?: displayName.substringBeforeLast('.'),
-                    artist = cursor.getString(artistIndex)?.takeIf { it.isNotBlank() && it != UNKNOWN_ARTIST },
+                    artist = cursor.getString(artistIndex)?.takeIf { it.isNotBlank() && it != UNKNOWN_TAG },
                     type = type,
                     durationMs = cursor.getLong(durationIndex),
                     sizeBytes = cursor.getLong(sizeIndex),
                     dateAddedSeconds = cursor.getLong(dateIndex),
                     isDownload = cursor.isInAppFolder(pathIndex),
+                    album = albumTagOrNull(
+                        album = cursor.stringOrNull(albumIndex),
+                        folderName = folderNameFrom(cursor.getString(pathIndex), usesRelativePath),
+                    ),
+                    trackNumber = cursor.trackNumber(trackIndex),
                 )
             }
         }
@@ -133,12 +147,21 @@ class MediaStoreLibraryRepository(context: Context) : LibraryRepository {
     private fun Cursor.isInAppFolder(pathIndex: Int): Boolean =
         getString(pathIndex)?.contains("${MediaFolders.APP_FOLDER}/") == true
 
+    private fun Cursor.stringOrNull(index: Int): String? =
+        if (index < 0) null else getString(index)?.takeIf { it.isNotBlank() }
+
+    /**
+     * MediaStore junta disco y pista en un número: 1005 es "disco 1, pista 5". Nos quedamos con
+     * la pista, que es lo que sirve para ordenar un álbum.
+     */
+    private fun Cursor.trackNumber(index: Int): Int? {
+        if (index < 0 || isNull(index)) return null
+        val raw = getInt(index)
+        return (if (raw > 1_000) raw % 1_000 else raw).takeIf { it > 0 }
+    }
+
     private fun collection(type: MediaType): Uri = when (type) {
         MediaType.VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         MediaType.AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-    }
-
-    private companion object {
-        const val UNKNOWN_ARTIST = "<unknown>" // valor que pone MediaStore cuando no hay artista
     }
 }
