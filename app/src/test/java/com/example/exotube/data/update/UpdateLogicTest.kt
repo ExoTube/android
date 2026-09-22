@@ -198,3 +198,52 @@ class WhatsNewTest {
         assertFalse(shouldShowWhatsNew(seenVersionCode = 4, currentVersionCode = 3, hasBeenUpdated = true))
     }
 }
+
+/**
+ * Las notas se escriben una vez y se leen en dos sitios: la página de GitHub, que pinta el
+ * Markdown, y la hoja de la app, que es texto pelado. Sin limpiarlas, al usuario le saldrían las
+ * almohadillas y los asteriscos en la cara.
+ */
+class ReleaseNotesTest {
+
+    @Test
+    fun `los titulos pierden las almohadillas`() {
+        assertEquals("Novedades", plainTextFrom("## Novedades"))
+        assertEquals("Explorar", plainTextFrom("### Explorar"))
+    }
+
+    @Test
+    fun `las vinetas se ven como puntos`() {
+        assertEquals("• Pantalla completa", plainTextFrom("- Pantalla completa"))
+        assertEquals("• Pantalla completa", plainTextFrom("* Pantalla completa"))
+    }
+
+    @Test
+    fun `la negrita y la cursiva se quedan solo con el texto`() {
+        assertEquals("Álbumes", plainTextFrom("**Álbumes**"))
+        assertEquals("Álbumes", plainTextFrom("*Álbumes*"))
+        assertEquals("ya está aquí", plainTextFrom("ya __está__ aquí"))
+    }
+
+    /**
+     * Lo que esto protege: los nombres técnicos llevan guiones bajos y asteriscos en medio y no
+     * son formato. Si se quitaran, "libc++_shared" quedaría irreconocible.
+     */
+    @Test
+    fun `no toca los simbolos dentro de una palabra`() {
+        assertEquals("ExoTube-1.2-arm64-v8a.apk", plainTextFrom("ExoTube-1.2-arm64-v8a.apk"))
+        assertEquals("libc++_shared.so", plainTextFrom("libc++_shared.so"))
+    }
+
+    @Test
+    fun `conserva los saltos de linea y quita los espacios de sobra`() {
+        val notas = "## Novedades\n\n- Videoclips\n- Álbumes\n"
+
+        assertEquals("Novedades\n\n• Videoclips\n• Álbumes", plainTextFrom(notas))
+    }
+
+    @Test
+    fun `un texto sin formato se queda igual`() {
+        assertEquals("Mejoras y corrección de fallos.", plainTextFrom("Mejoras y corrección de fallos."))
+    }
+}

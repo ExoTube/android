@@ -88,7 +88,9 @@ internal fun ReleaseDto.toUpdateOrNull(currentVersionName: String, abis: List<St
     val asset = assets.forAbi(abis) ?: return null
     return AppUpdate(
         versionName = tagName.removePrefix("v"),
-        notes = body?.trim().orEmpty(),
+        // Se limpia aquí y no al pintarlo: así el modelo de dominio lleva texto corriente
+        // y la pantalla no tiene que saber que esto vino de GitHub.
+        notes = body?.let(::plainTextFrom).orEmpty(),
         downloadUrl = asset.downloadUrl,
         sizeBytes = asset.size,
         pageUrl = htmlUrl,
