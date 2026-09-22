@@ -1,16 +1,24 @@
 package com.example.exotube.ui
 
+import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -25,11 +33,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.ui.compose.state.rememberCurrentMediaItemState
 import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.navigation.NavDestination
@@ -39,10 +51,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.example.exotube.R
+import com.example.exotube.album.AlbumDetailScreen
+import com.example.exotube.album.AlbumsScreen
+import com.example.exotube.album.AlbumsViewModel
 import com.example.exotube.domain.model.LibraryItem
 import com.example.exotube.explore.ExploreRoute
 import com.example.exotube.library.LibraryRoute
+import com.example.exotube.player.EqualizerRoute
+import com.example.exotube.player.FloatingVideo
+import com.example.exotube.player.FullscreenVideoScreen
 import com.example.exotube.player.MiniPlayer
 import com.example.exotube.player.NowPlayingScreen
 import com.example.exotube.player.PlayerViewModel
@@ -51,6 +70,13 @@ import com.example.exotube.playlist.CreatePlaylistDialog
 import com.example.exotube.playlist.PlaylistDetailRoute
 import com.example.exotube.playlist.PlaylistsScreen
 import com.example.exotube.playlist.PlaylistsViewModel
+import com.example.exotube.songedit.RenameSongDialog
+import com.example.exotube.songedit.SongEditEvent
+import com.example.exotube.songedit.SongEditViewModel
+import com.example.exotube.trim.TrimRoute
+import com.example.exotube.update.UpdateRoute
+import com.example.exotube.ui.navigation.AlbumDestination
+import com.example.exotube.ui.navigation.AlbumsDestination
 import com.example.exotube.ui.navigation.ExploreDestination
 import com.example.exotube.ui.navigation.LibraryDestination
 import com.example.exotube.ui.navigation.PlaylistDestination
@@ -60,6 +86,7 @@ import com.example.exotube.ui.navigation.PlaylistsDestination
 private enum class TopLevelTab(val destination: Any, @StringRes val label: Int, @DrawableRes val icon: Int) {
     LIBRARY(LibraryDestination, R.string.nav_library, R.drawable.ic_library_music),
     EXPLORE(ExploreDestination, R.string.nav_explore, R.drawable.ic_explore),
+    ALBUMS(AlbumsDestination, R.string.nav_albums, R.drawable.ic_album),
     PLAYLISTS(PlaylistsDestination, R.string.nav_playlists, R.drawable.ic_queue_music),
 }
 
@@ -68,11 +95,27 @@ private enum class TopLevelTab(val destination: Any, @StringRes val label: Int, 
  * (mini reproductor, pantalla "Reproduciendo" y hoja "Añadir a playlist").
  */
 @Composable
-fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsViewModel) {
+fun AppShell(
+    playerViewModel: PlayerViewModel,
+    playlistsViewModel: PlaylistsViewModel,
+    albumsViewModel: AlbumsViewModel,
+    /** true mientras la app se ve como una ventanita flotante encima de otras apps. */
+    isInPictureInPicture: Boolean = false,
+    /** null si el teléfono no admite la ventana flotante. */
+    onEnterPictureInPicture: (() -> Unit)? = null,
+) {
+    val player by playerViewModel.player.collectAsStateWithLifecycle()
+
+    // En la ventana flotante no cabe la app: solo el video. Se sale antes de dibujar nada más.
+    if (isInPictureInPicture) {
+        player?.let { FloatingVideo(it) }
+        return
+    }
+
     val navController = rememberNavController()
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
-    val player by playerViewModel.player.collectAsStateWithLifecycle()
     val playlistsState by playlistsViewModel.uiState.collectAsStateWithLifecycle()
+    val albumsState by albumsViewModel.uiState.collectAsStateWithLifecycle()
     val nowPlayingUri = player?.let { rememberCurrentMediaItemState(it).mediaItem?.mediaId }
     val repeatPlan by playerViewModel.repeatPlan.collectAsStateWithLifecycle()
     // "Muestra el botón de reproducir" equivale a "no está sonando": lo usan el ecualizador de
@@ -80,6 +123,10 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
     val isPlaying = player?.let { !rememberPlayPauseButtonState(it).showPlay } == true
 
     var showNowPlaying by rememberSaveable { mutableStateOf(false) }
+    var showEqualizer by rememberSaveable { mutableStateOf(false) }
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var itemToTrim by remember { mutableStateOf<LibraryItem?>(null) }
+    var itemToRename by remember { mutableStateOf<LibraryItem?>(null) }
     var itemForPlaylist by remember { mutableStateOf<LibraryItem?>(null) }
     // Crear playlist: null = diálogo cerrado; Some(uri?) = abierto (y, si hay uri, se añade al crearla).
     var newPlaylistRequest by remember { mutableStateOf<NewPlaylistRequest?>(null) }
@@ -96,6 +143,11 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
             Toast.makeText(context, R.string.player_error, Toast.LENGTH_LONG).show()
         }
     }
+
+    // Cambiar la portada y cambiar el nombre comparten el permiso de escritura que pide Android.
+    val songEditViewModel: SongEditViewModel = viewModel(factory = SongEditViewModel.Factory)
+    val onChangeCover = rememberChangeCoverAction(songEditViewModel)
+    val workingMessage by songEditViewModel.workingMessage.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
         Scaffold(
@@ -124,6 +176,9 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
                         isPlaying = isPlaying,
                         onPlay = { items, index -> playerViewModel.playQueue(items, index) },
                         onAddToPlaylist = { itemForPlaylist = it },
+                        onTrim = { itemToTrim = it },
+                        onChangeCover = onChangeCover,
+                        onRename = { itemToRename = it },
                         contentPadding = padding,
                     )
                 }
@@ -136,6 +191,36 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
                         onGoToLibrary = { navController.navigate(LibraryDestination) },
                         contentPadding = padding,
                     )
+                }
+                composable<AlbumsDestination> {
+                    AlbumsScreen(
+                        state = albumsState,
+                        onGroupingSelected = albumsViewModel::onGroupingSelected,
+                        onOpenAlbum = { navController.navigate(AlbumDestination(it.id)) },
+                        contentPadding = padding,
+                    )
+                }
+                composable<AlbumDestination> { entry ->
+                    // El álbum se busca en el mismo estado que pinta la lista: si su última
+                    // canción se borra, el álbum desaparece y volvemos atrás solos.
+                    val albumId = entry.toRoute<AlbumDestination>().albumId
+                    val album = albumsState.albums.firstOrNull { it.id == albumId }
+                    if (album == null) {
+                        if (!albumsState.isLoading) LaunchedEffect(albumId) { navController.popBackStack() }
+                    } else {
+                        AlbumDetailScreen(
+                            album = album,
+                            nowPlayingUri = nowPlayingUri,
+                            isPlaying = isPlaying,
+                            onPlay = playerViewModel::playQueue,
+                            onAddToPlaylist = { itemForPlaylist = it },
+                            onTrim = { itemToTrim = it },
+                            onChangeCover = onChangeCover,
+                            onRename = { itemToRename = it },
+                            onBack = { navController.popBackStack() },
+                            contentPadding = padding,
+                        )
+                    }
                 }
                 composable<PlaylistsDestination> {
                     PlaylistsScreen(
@@ -168,11 +253,52 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
                     player = it,
                     repeatPlan = repeatPlan,
                     onCycleRepeat = playerViewModel::cycleRepeatPlan,
+                    onOpenEqualizer = { showEqualizer = true },
+                    onEnterFullscreen = { isFullscreen = true },
+                    onEnterPictureInPicture = onEnterPictureInPicture,
                     onCollapse = { showNowPlaying = false },
                 )
             }
         }
     }
+
+    // La pantalla completa tapa incluso "Reproduciendo": mientras dura, solo existe el video.
+    if (isFullscreen) {
+        val current = player
+        if (current == null) {
+            isFullscreen = false
+        } else {
+            BackHandler { isFullscreen = false }
+            FullscreenVideoScreen(player = current, onExit = { isFullscreen = false })
+        }
+    }
+
+    // Recortar ocupa la pantalla entera, encima de todo, como "Reproduciendo".
+    itemToTrim?.let { item ->
+        BackHandler { itemToTrim = null }
+        TrimRoute(item = item, onClose = { itemToTrim = null })
+    }
+
+    if (showEqualizer) {
+        EqualizerRoute(onDismiss = { showEqualizer = false })
+    }
+
+    itemToRename?.let { item ->
+        RenameSongDialog(
+            currentTitle = item.title,
+            onConfirm = { newTitle ->
+                songEditViewModel.rename(item, newTitle)
+                itemToRename = null
+            },
+            onDismiss = { itemToRename = null },
+        )
+    }
+
+    // Reescribir una canción de varios megabytes tarda un par de segundos: hay que decirlo.
+    workingMessage?.let { WorkingOverlay(it) }
+
+    // Aviso de versión nueva y, tras actualizar, las novedades. Aparecen solos cuando toca.
+    UpdateRoute()
 
     itemForPlaylist?.let { item ->
         val playlistIds by remember(item.uri) { playlistsViewModel.playlistIdsContaining(item.uri) }
@@ -199,6 +325,72 @@ fun AppShell(playerViewModel: PlayerViewModel, playlistsViewModel: PlaylistsView
 }
 
 private data class NewPlaylistRequest(val addingMediaUri: String?)
+
+/**
+ * Devuelve la acción "cambiar la portada de esta canción", con los tres pasos ya resueltos:
+ * elegir la foto, aplicarla y, si Android lo exige, pedir permiso para tocar el archivo.
+ *
+ * No dibuja nada: solo registra los lanzadores del sistema y devuelve la función a llamar.
+ */
+@Composable
+private fun rememberChangeCoverAction(viewModel: SongEditViewModel): (LibraryItem) -> Unit {
+    val context = LocalContext.current
+    // De qué canción era la portada. El selector de fotos es del sistema y no se lo puede llevar.
+    var pendingItem by remember { mutableStateOf<LibraryItem?>(null) }
+
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        val item = pendingItem
+        pendingItem = null
+        if (uri != null && item != null) viewModel.changeCover(item, uri.toString())
+    }
+
+    // El diálogo del sistema para autorizar la escritura en un archivo que no creó ExoTube.
+    val grantWrite = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) viewModel.retryPending() else viewModel.cancelPending()
+    }
+
+    // Los avisos son de las dos operaciones, no solo de la portada: el ViewModel es el mismo.
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is SongEditEvent.Done ->
+                    Toast.makeText(context, event.messageRes, Toast.LENGTH_SHORT).show()
+                is SongEditEvent.Failed -> Toast.makeText(
+                    context,
+                    context.getString(event.messageRes, event.cause.orEmpty()),
+                    Toast.LENGTH_LONG,
+                ).show()
+                is SongEditEvent.NeedsPermission ->
+                    grantWrite.launch(IntentSenderRequest.Builder(event.request).build())
+            }
+        }
+    }
+
+    return { item ->
+        pendingItem = item
+        pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+}
+
+/** Tapa la pantalla mientras se reescribe el archivo, para que nadie lo toque a medias. */
+@Composable
+private fun WorkingOverlay(@StringRes messageRes: Int) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.6f)),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = stringResource(messageRes),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+}
 
 @Composable
 private fun BottomTabs(currentDestination: NavDestination?, onSelect: (TopLevelTab) -> Unit) {

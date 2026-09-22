@@ -148,6 +148,10 @@ fun NowPlayingScreen(
     player: Player,
     repeatPlan: RepeatPlan,
     onCycleRepeat: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    onEnterFullscreen: () -> Unit,
+    /** null si el teléfono no admite la ventana flotante. */
+    onEnterPictureInPicture: (() -> Unit)?,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -156,7 +160,28 @@ fun NowPlayingScreen(
     // Esta pantalla se dibuja ENCIMA del Scaffold, fuera de cualquier Surface: sin este Surface,
     // Compose usaría el color de contenido por defecto (negro) y los textos serían invisibles.
     Surface(color = colors.background, modifier = modifier.fillMaxSize()) {
-        NowPlayingContent(player, repeatPlan, onCycleRepeat, onCollapse)
+        NowPlayingContent(
+            player = player,
+            repeatPlan = repeatPlan,
+            onCycleRepeat = onCycleRepeat,
+            onOpenEqualizer = onOpenEqualizer,
+            onEnterFullscreen = onEnterFullscreen,
+            onEnterPictureInPicture = onEnterPictureInPicture,
+            onCollapse = onCollapse,
+        )
+    }
+}
+
+/**
+ * Solo el video, a pantalla completa y sobre negro: es lo que se ve en la ventana flotante.
+ *
+ * En la ventana flotante no cabe nada más: Android la dibuja de unos pocos centímetros y los
+ * botones vienen puestos por el sistema, no por la app.
+ */
+@Composable
+fun FloatingVideo(player: Player, modifier: Modifier = Modifier) {
+    Surface(color = Color.Black, modifier = modifier.fillMaxSize()) {
+        ContentFrame(player = player, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -165,6 +190,9 @@ private fun NowPlayingContent(
     player: Player,
     repeatPlan: RepeatPlan,
     onCycleRepeat: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    onEnterFullscreen: () -> Unit,
+    onEnterPictureInPicture: (() -> Unit)?,
     onCollapse: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -173,6 +201,7 @@ private fun NowPlayingContent(
     val playPause = rememberPlayPauseButtonState(player)
     // showPlay es "toca mostrar el botón de reproducir", o sea: ahora mismo NO está sonando.
     val isPlaying = !playPause.showPlay
+    val isVideo = metadata.toMediaType() == MediaType.VIDEO
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -193,20 +222,27 @@ private fun NowPlayingContent(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.size(48.dp)) // equilibra el botón de la izquierda para centrar el título
+            // La ventana flotante solo tiene sentido con imagen; para una canción basta con que
+            // el sonido siga, que ya ocurre al salir de la app.
+            if (isVideo && onEnterPictureInPicture != null) {
+                IconButton(onClick = onEnterPictureInPicture) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_picture_in_picture),
+                        contentDescription = stringResource(R.string.player_picture_in_picture),
+                    )
+                }
+            }
+            IconButton(onClick = onOpenEqualizer) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tune),
+                    contentDescription = stringResource(R.string.equalizer_open),
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))
-        if (metadata.toMediaType() == MediaType.VIDEO) {
-            // ContentFrame dibuja el video y respeta su relación de aspecto.
-            ContentFrame(
-                player = player,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color.Black),
-            )
+        if (isVideo) {
+            VideoFrame(player = player, onEnterFullscreen = onEnterFullscreen)
         } else {
             BreathingArtwork(
                 uri = metadata.artworkUri?.toString(),
@@ -240,6 +276,35 @@ private fun NowPlayingContent(
         Spacer(Modifier.height(8.dp))
         PlaybackControls(player, playPause, repeatPlan, onCycleRepeat)
         Spacer(Modifier.height(32.dp))
+    }
+}
+
+/**
+ * El video dentro del reproductor, con el botón de pantalla completa en una esquina.
+ *
+ * ContentFrame dibuja la imagen y respeta su relación de aspecto; el botón va encima, donde lo
+ * espera cualquiera que haya visto un video en un teléfono.
+ */
+@Composable
+private fun VideoFrame(player: Player, onEnterFullscreen: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.Black),
+    ) {
+        ContentFrame(player = player, modifier = Modifier.fillMaxSize())
+        IconButton(
+            onClick = onEnterFullscreen,
+            modifier = Modifier.align(Alignment.BottomEnd),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_fullscreen),
+                contentDescription = stringResource(R.string.player_fullscreen),
+                tint = Color.White,
+            )
+        }
     }
 }
 
@@ -296,7 +361,7 @@ private fun BreathingArtwork(uri: String?, isPlaying: Boolean, modifier: Modifie
 }
 
 @Composable
-private fun SeekBar(player: Player) {
+internal fun SeekBar(player: Player) {
     val progress = rememberProgressStateWithTickInterval(player, 500L)
     // Mientras el usuario arrastra, mostramos SU posición, no la del reproductor.
     var dragPositionMs by remember { mutableStateOf<Float?>(null) }
@@ -415,7 +480,7 @@ private fun RepeatButton(plan: RepeatPlan, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PlayPauseIcon(
+internal fun PlayPauseIcon(
     state: PlayPauseButtonState,
     modifier: Modifier = Modifier,
     tint: Color = LocalContentColor.current,

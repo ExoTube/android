@@ -24,6 +24,11 @@
     <!-- Notificación de progreso (Android 13+ la pide en tiempo de ejecución). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Actualizarse desde la propia app: descargar el APK nuevo y abrir el instalador de
+         Android. NO permite instalar a escondidas: el sistema siempre pide confirmación, y
+         además el usuario tiene que autorizar a ExoTube una vez desde los Ajustes. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
     <!-- Descarga en primer plano (Fase 4: WorkManager usa un Foreground Service de tipo dataSync). -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -42,10 +47,15 @@
         android:theme="@style/Theme.ExoTube">
 
         <!-- Pantalla principal (icono del launcher). -->
+        <!-- supportsPictureInPicture: permite seguir viendo el video en una ventanita encima de
+             otras apps. configChanges evita que Android recree la Activity al entrar y salir de
+             esa ventana, que es un cambio de tamaño: sin esto, el video se cortaría. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:label="@string/app_name"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.ExoTube"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -79,6 +89,20 @@
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
             tools:node="merge" />
+
+        <!-- Android no deja pasar rutas de archivo entre apps. FileProvider convierte el APK
+             descargado en una Uri "content://" que el instalador sí puede leer, y solo mientras
+             dure ese envío. Ver res/xml/file_paths.xml: la única carpeta compartida es la de las
+             actualizaciones. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Servicio del reproductor. exported="true" es obligatorio: así lo encuentran la
              notificación multimedia, la pantalla de bloqueo y los dispositivos Bluetooth. -->

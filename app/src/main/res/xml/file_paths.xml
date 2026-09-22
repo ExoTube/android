@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lo unico que ExoTube comparte con otras apps: el APK de la actualizacion, que hay que
+     entregarle al instalador de Android. Se declara solo esa carpeta, nada mas. -->
+<paths>
+    <external-files-path
+        name="actualizaciones"
+        path="actualizaciones/" />
+</paths>

@@ -14,4 +14,11 @@ data class LibraryItem(
     val dateAddedSeconds: Long,
     /** true si lo descargó ExoTube; false si ya estaba en el teléfono (música de otras apps). */
     val isDownload: Boolean = true,
+    /**
+     * Álbum al que pertenece, si el archivo lo trae etiquetado. Los videos nunca lo tienen, y
+     * muchas descargas de YouTube tampoco: solo las canciones publicadas como música lo llevan.
+     */
+    val album: String? = null,
+    /** Número de pista dentro del álbum, para poder ordenarlo como en el disco original. */
+    val trackNumber: Int? = null,
 )

@@ -66,6 +66,9 @@ fun LibraryRoute(
     isPlaying: Boolean,
     onPlay: (items: List<LibraryItem>, startIndex: Int) -> Unit,
     onAddToPlaylist: (LibraryItem) -> Unit,
+    onTrim: (LibraryItem) -> Unit,
+    onChangeCover: (LibraryItem) -> Unit,
+    onRename: (LibraryItem) -> Unit,
     contentPadding: PaddingValues,
     viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
 ) {
@@ -95,6 +98,9 @@ fun LibraryRoute(
         onQueryChange = viewModel::onQueryChange,
         onItemClick = { index -> onPlay(state.visibleItems, index) },
         onAddToPlaylist = onAddToPlaylist,
+        onTrim = onTrim,
+        onChangeCover = onChangeCover,
+        onRename = onRename,
         onAllowPhoneMusic = { requestPermission.launch(AudioLibraryPermission.name) },
         contentPadding = contentPadding,
     )
@@ -111,6 +117,9 @@ fun LibraryScreen(
     onQueryChange: (String) -> Unit,
     onItemClick: (index: Int) -> Unit,
     onAddToPlaylist: (LibraryItem) -> Unit,
+    onTrim: (LibraryItem) -> Unit,
+    onChangeCover: (LibraryItem) -> Unit,
+    onRename: (LibraryItem) -> Unit,
     onAllowPhoneMusic: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -145,9 +154,16 @@ fun LibraryScreen(
                     isCurrent = item.uri == nowPlayingUri,
                     onClick = { onItemClick(index) },
                     isPlaying = isPlaying,
-                    actions = listOf(
-                        RowAction(R.string.add_to_playlist, R.drawable.ic_playlist_add) { onAddToPlaylist(item) },
-                    ),
+                    actions = buildList {
+                        add(RowAction(R.string.add_to_playlist, R.drawable.ic_playlist_add) { onAddToPlaylist(item) })
+                        // Recortar y cambiar la portada son cosas de canciones: un video no
+                        // tiene carátula ni se recorta desde aquí.
+                        if (item.type == MediaType.AUDIO) {
+                            add(RowAction(R.string.trim_action, R.drawable.ic_cut) { onTrim(item) })
+                            add(RowAction(R.string.cover_action, R.drawable.ic_image) { onChangeCover(item) })
+                            add(RowAction(R.string.rename_action, R.drawable.ic_edit) { onRename(item) })
+                        }
+                    },
                 )
             }
         }
@@ -330,6 +346,9 @@ private fun LibraryScreenPreview() {
             onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
+            onTrim = {},
+            onChangeCover = {},
+            onRename = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -350,6 +369,9 @@ private fun LibraryScreenWithBannerPreview() {
             onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
+            onTrim = {},
+            onChangeCover = {},
+            onRename = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -370,6 +392,9 @@ private fun LibrarySearchWithoutResultsPreview() {
             onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
+            onTrim = {},
+            onChangeCover = {},
+            onRename = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -389,6 +414,9 @@ private fun EmptyLibraryPreview() {
             onQueryChange = {},
             onItemClick = {},
             onAddToPlaylist = {},
+            onTrim = {},
+            onChangeCover = {},
+            onRename = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )

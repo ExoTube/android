@@ -1,5 +1,6 @@
 package com.example.exotube.data.ytdlp
 
+import android.os.SystemClock
 import android.util.Log
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
@@ -10,13 +11,15 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Buscar videos en YouTube y obtener la dirección para verlos sin descargarlos, con el mismo
+ * Buscar videos en YouTube y obtener las direcciones para verlos sin descargarlos, con el mismo
  * yt-dlp que ya usa la app para descargar.
  *
- * Aquí no se descarga NADA al teléfono: solo se pide la dirección del archivo que ya está en el
- * servidor y se la pasamos al reproductor, como haría cualquier web de video.
+ * Aquí no se descarga NADA al teléfono: solo se piden las direcciones de los archivos que ya
+ * están en el servidor y se le pasan al reproductor, como haría cualquier web de video.
  */
 class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
+
+    private val cache = StreamUrlCache()
 
     override suspend fun search(query: String): Result<List<OnlineVideo>> = try {
         // "ytsearchN:texto" es una URL falsa que entiende yt-dlp: busca y devuelve N resultados.
@@ -24,6 +27,7 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
             .addOption("--dump-single-json")
             // Sin esto, yt-dlp analizaría cada resultado uno a uno: minutos en vez de segundos.
             .addOption("--flat-playlist")
+            .addOption("--no-warnings")
         val json = engine.run(request).out
         val videos = withContext(Dispatchers.Default) {
             OnlineVideoMapper.toOnlineVideos(YtDlpJson.decodeFromString<YtDlpSearchDto>(json))
@@ -37,49 +41,53 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
     }
 
     /**
-     * Pide la dirección directa del video.
+     * Pide las direcciones con las que reproducir [video].
      *
-     * Para ver, pedimos un formato que YA lleve imagen y sonido juntos: así es una sola dirección
-     * y el reproductor no tiene que mezclar dos flujos. A cambio, YouTube solo ofrece calidades
-     * modestas así mezcladas; para ver en alta definición está la descarga.
-     *
-     * Si ese formato no existe (pasa en algunos videos y en los directos), se intenta al menos el
-     * audio: es mejor escuchar la canción que no poder hacer nada.
+     * Si ya se resolvió hace poco, se devuelve lo guardado y no se arranca yt-dlp: eso convierte
+     * los segundos de espera en cero al volver a una canción.
      */
     override suspend fun resolveStream(
         video: OnlineVideo,
         audioOnly: Boolean,
     ): Result<StreamSource> {
-        val attempts = if (audioOnly) {
-            listOf(AUDIO_FORMAT to false)
-        } else {
-            listOf(MUXED_FORMAT to true, AUDIO_FORMAT to false)
+        val key = "${video.id}:$audioOnly"
+        cache.get(key)?.let {
+            Log.d(TAG, "Dirección reutilizada de la caché: ${video.id}")
+            return Result.success(it)
         }
 
-        var lastError: Throwable? = null
-        for ((format, hasVideo) in attempts) {
-            try {
-                val url = directUrl(video.url, format)
-                if (url != null) return Result.success(StreamSource(url, hasVideo))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "No se pudo resolver con el formato $format", e)
-                lastError = e
-            }
+        return try {
+            val startMs = SystemClock.elapsedRealtime()
+            val urls = directUrls(video.url, if (audioOnly) AUDIO_ONLY_FORMAT else VIDEO_FORMAT)
+            val source = toStreamSource(urls, audioOnly)
+                ?: return Result.failure(MediaError.NoMediaFound)
+            cache.put(key, source)
+            Log.d(TAG, "Resuelto ${video.id} en ${SystemClock.elapsedRealtime() - startMs} ms")
+            Result.success(source)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudo resolver ${video.id}", e)
+            Result.failure(YtDlpErrorMapper.map(e))
         }
-        return Result.failure(lastError?.let(YtDlpErrorMapper::map) ?: MediaError.NoMediaFound)
     }
 
-    /** `-g` imprime la dirección del formato elegido, una por línea, sin descargar nada. */
-    private suspend fun directUrl(url: String, format: String): String? {
+    /**
+     * `-g` imprime la dirección de cada formato elegido, una por línea, sin descargar nada.
+     * Con un formato del tipo "imagen+sonido" salen dos líneas; con uno solo, una.
+     */
+    private suspend fun directUrls(url: String, format: String): List<String> {
         val request = engine.newRequest(url)
             .addOption("-f", format)
             .addOption("-g")
             .addOption("--no-playlist")
+            .addOption("--no-warnings")
+            // No usamos formatos troceados (HLS): que yt-dlp no pierda tiempo en analizarlos.
+            .addOption("--extractor-args", "youtube:skip=hls")
         return engine.run(request).out.lineSequence()
             .map { it.trim() }
-            .firstOrNull { it.startsWith("http") }
+            .filter { it.startsWith("http") }
+            .toList()
     }
 
     private companion object {
@@ -87,13 +95,37 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
         const val RESULTS_PER_SEARCH = 20
 
         /**
-         * "b" = el mejor formato; los corchetes son condiciones:
-         *  - vcodec/acodec != none: que traiga imagen Y sonido en el mismo archivo;
-         *  - protocol^=http: descarga normal, no un directo troceado (HLS), que no sabemos leer.
+         * Una sola petición con tres intentos encadenados por "/": yt-dlp se queda con el primero
+         * que exista. Antes hacían falta dos llamadas a yt-dlp, o sea el doble de espera.
+         *
+         *  1. Imagen H.264 hasta 1080p + sonido AAC por separado. Los códecs que entiende
+         *     cualquier teléfono, así que es el que menos sorpresas da.
+         *  2. Lo mismo sin exigir códec (puede ser VP9 u Opus; el reproductor también los lee).
+         *  3. Un único archivo con imagen y sonido, que es lo que queda cuando no hay nada mejor.
+         *     YouTube solo los sirve en 360p, de ahí que sea el último recurso.
+         *
+         * "protocol^=http" descarta los formatos troceados en directo, que no sabemos leer;
+         * el "?" de "height<=?1080" hace que un formato sin altura declarada no se descarte.
          */
-        const val MUXED_FORMAT = "b[vcodec!=none][acodec!=none][protocol^=http]"
+        const val VIDEO_FORMAT =
+            "bv*[vcodec^=avc1][height<=?1080][protocol^=http]+ba[ext=m4a][protocol^=http]/" +
+                "bv*[height<=?1080][protocol^=http]+ba[protocol^=http]/" +
+                "b[vcodec!=none][acodec!=none][protocol^=http]"
 
-        /** "ba" = el mejor solo-audio. */
-        const val AUDIO_FORMAT = "ba[protocol^=http]"
+        /** Modo ahorro de datos: solo el sonido, sin caer nunca a un formato con imagen. */
+        const val AUDIO_ONLY_FORMAT = "ba[protocol^=http]"
     }
+}
+
+/**
+ * Interpreta las direcciones que imprimió yt-dlp. Dos significa que la imagen y el sonido vienen
+ * por separado; una, que está todo junto (o que solo se pidió el sonido).
+ *
+ * Función aparte, y no un método privado, para poder probarla sin arrancar yt-dlp.
+ */
+internal fun toStreamSource(urls: List<String>, audioOnly: Boolean): StreamSource? = when {
+    urls.isEmpty() -> null
+    // yt-dlp las imprime en el orden del formato pedido: primero la imagen, luego el sonido.
+    urls.size >= 2 && !audioOnly -> StreamSource.Separate(urls[0], urls[1])
+    else -> StreamSource.Single(urls[0], hasVideo = !audioOnly)
 }
