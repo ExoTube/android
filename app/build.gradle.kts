@@ -147,6 +147,8 @@ dependencies {
     // --- Reproductor de música/video ---
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
+    // Descargar los videos en línea con OkHttp (que ya viaja en la app) para poder elegir por qué IP salen.
+    implementation(libs.media3.datasource.okhttp)
     implementation(libs.media3.ui.compose)
 
     // --- Playlists (base de datos local) y navegación entre pantallas ---

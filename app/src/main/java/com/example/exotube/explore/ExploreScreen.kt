@@ -28,9 +28,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,7 +44,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaError
-import com.example.exotube.comments.CommentsRoute
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
 import com.example.exotube.ui.components.OnlineVideoRow
@@ -61,7 +57,7 @@ import com.example.exotube.ui.theme.ExoTubeTheme
  */
 @Composable
 fun ExploreRoute(
-    onPlayOnline: (OnlineVideo, StreamSource) -> Unit,
+    onPlayOnline: (OnlineVideo, StreamSource, audioOnly: Boolean) -> Unit,
     onGoToLibrary: () -> Unit,
     contentPadding: PaddingValues,
     viewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory),
@@ -73,15 +69,12 @@ fun ExploreRoute(
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
-                is ExploreEvent.Play -> onPlayOnline(event.video, event.stream)
+                is ExploreEvent.Play -> onPlayOnline(event.video, event.stream, event.audioOnly)
                 is ExploreEvent.ResolveFailed ->
                     Toast.makeText(context, event.error.messageRes(), Toast.LENGTH_LONG).show()
             }
         }
     }
-
-    // El video cuyos comentarios se estan mirando; null = hoja cerrada.
-    var videoWithComments by remember { mutableStateOf<OnlineVideo?>(null) }
 
     ExploreScreen(
         state = state,
@@ -91,15 +84,10 @@ fun ExploreRoute(
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
         onVideoSelected = viewModel::onVideoSelected,
         onDownload = { context.startActivity(shareToSelf(it)) },
-        onComments = { videoWithComments = it },
         onRetry = viewModel::onRetry,
         onGoToLibrary = onGoToLibrary,
         contentPadding = contentPadding,
     )
-
-    videoWithComments?.let { video ->
-        CommentsRoute(video = video, onDismiss = { videoWithComments = null })
-    }
 }
 
 /**
@@ -123,7 +111,6 @@ fun ExploreScreen(
     onAudioOnlyChange: (Boolean) -> Unit,
     onVideoSelected: (OnlineVideo) -> Unit,
     onDownload: (OnlineVideo) -> Unit,
-    onComments: (OnlineVideo) -> Unit,
     onRetry: () -> Unit,
     onGoToLibrary: () -> Unit,
     contentPadding: PaddingValues,
@@ -173,7 +160,6 @@ fun ExploreScreen(
                         isResolving = video.id == state.resolvingId,
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
-                        onComments = { onComments(video) },
                     )
                 }
             }
@@ -191,7 +177,6 @@ fun ExploreScreen(
                         isResolving = video.id == state.resolvingId,
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
-                        onComments = { onComments(video) },
                     )
                 }
             }
@@ -410,7 +395,6 @@ private fun ExploreScreenPreview() {
             onAudioOnlyChange = {},
             onVideoSelected = {},
             onDownload = {},
-            onComments = {},
             onRetry = {},
             onGoToLibrary = {},
             contentPadding = PaddingValues(),
@@ -430,7 +414,6 @@ private fun ExploreOfflinePreview() {
             onAudioOnlyChange = {},
             onVideoSelected = {},
             onDownload = {},
-            onComments = {},
             onRetry = {},
             onGoToLibrary = {},
             contentPadding = PaddingValues(),

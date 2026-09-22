@@ -98,6 +98,10 @@ interface PlaylistDao {
 
     @Query("DELETE FROM playlist_items WHERE playlistId = :playlistId AND mediaUri = :mediaUri")
     suspend fun removeItem(playlistId: Long, mediaUri: String)
+
+    /** Al borrar un archivo del teléfono, desaparece de todas las playlists que lo tenían. */
+    @Query("DELETE FROM playlist_items WHERE mediaUri = :mediaUri")
+    suspend fun removeEverywhere(mediaUri: String)
 }
 
 /**

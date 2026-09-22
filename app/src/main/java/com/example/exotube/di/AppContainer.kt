@@ -8,7 +8,9 @@ import com.example.exotube.data.audio.FFmpegAudioEditor
 import com.example.exotube.data.audio.FFmpegRunner
 import com.example.exotube.data.audio.WaveformReader
 import com.example.exotube.data.library.ArtworkCache
+import com.example.exotube.data.library.MediaStoreDeleter
 import com.example.exotube.data.library.MediaStoreLibraryRepository
+import com.example.exotube.data.network.ConnectionInfo
 import com.example.exotube.data.playlist.ExoTubeDatabase
 import com.example.exotube.data.playlist.PlaylistCoverStore
 import com.example.exotube.data.playlist.RoomPlaylistRepository
@@ -17,7 +19,6 @@ import com.example.exotube.data.update.GitHubUpdateRepository
 import com.example.exotube.data.update.UpdateSettings
 import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
-import com.example.exotube.data.ytdlp.YtDlpComments
 import com.example.exotube.data.ytdlp.YtDlpEngine
 import com.example.exotube.data.ytdlp.YtDlpRecommendations
 import com.example.exotube.domain.repository.AudioEditor
@@ -26,9 +27,9 @@ import com.example.exotube.domain.repository.DownloadScheduler
 import com.example.exotube.domain.repository.LibraryRepository
 import com.example.exotube.domain.repository.PlaylistRepository
 import com.example.exotube.domain.repository.MediaDownloader
+import com.example.exotube.domain.repository.MediaFileDeleter
 import com.example.exotube.domain.repository.MediaRepository
 import com.example.exotube.domain.repository.OnlineCatalogRepository
-import com.example.exotube.domain.repository.CommentsRepository
 import com.example.exotube.domain.repository.RecommendationRepository
 import com.example.exotube.domain.repository.UpdateRepository
 import com.example.exotube.download.MediaStoreSaver
@@ -61,8 +62,8 @@ class AppContainer(context: Context) {
 
     val onlineCatalog: OnlineCatalogRepository by lazy { YtDlpCatalog(ytDlpEngine) }
 
-    /** Los comentarios de los videos en linea. Solo lectura: ExoTube no publica nada. */
-    val comments: CommentsRepository by lazy { YtDlpComments(ytDlpEngine) }
+    /** Wifi o datos: la calidad automática de los videos en línea depende de ello. */
+    val connection: ConnectionInfo by lazy { ConnectionInfo(appContext) }
 
     val downloadScheduler: DownloadScheduler by lazy { WorkManagerDownloadScheduler(appContext) }
 
@@ -105,6 +106,11 @@ class AppContainer(context: Context) {
 
     val playlistRepository: PlaylistRepository by lazy {
         RoomPlaylistRepository(database.playlistDao(), libraryRepository, PlaylistCoverStore(appContext))
+    }
+
+    /** Borra descargas del teléfono y las olvida en playlists e historial. */
+    val mediaFileDeleter: MediaFileDeleter by lazy {
+        MediaStoreDeleter(appContext, database.playlistDao(), listeningDao)
     }
 
     // Sin claves en local.properties la app funciona igual, solo que sin historial en la nube.

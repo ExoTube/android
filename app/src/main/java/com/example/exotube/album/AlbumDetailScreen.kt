@@ -52,6 +52,7 @@ fun AlbumDetailScreen(
     onTrim: (LibraryItem) -> Unit,
     onChangeCover: (LibraryItem) -> Unit,
     onRename: (LibraryItem) -> Unit,
+    onDelete: (LibraryItem) -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -81,6 +82,7 @@ fun AlbumDetailScreen(
                     RowAction(R.string.trim_action, R.drawable.ic_cut) { onTrim(item) },
                     RowAction(R.string.cover_action, R.drawable.ic_image) { onChangeCover(item) },
                     RowAction(R.string.rename_action, R.drawable.ic_edit) { onRename(item) },
+                    RowAction(R.string.delete_action, R.drawable.ic_delete) { onDelete(item) },
                 ),
             )
         }

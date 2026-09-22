@@ -70,6 +70,7 @@ coil-video = { group = "io.coil-kt.coil3", name = "coil-video", version.ref = "c
 # --- Reproductor ---
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
 media3-ui-compose = { group = "androidx.media3", name = "media3-ui-compose", version.ref = "media3" }
 
 # --- Playlists y navegación ---

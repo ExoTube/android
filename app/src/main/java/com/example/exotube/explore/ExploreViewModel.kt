@@ -12,6 +12,7 @@ import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.Recommendation
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.domain.model.VideoQuality
 import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.domain.repository.RecommendationRepository
 import kotlinx.coroutines.Job
@@ -68,13 +69,15 @@ data class ExploreUiState(
 
 /** Cosas que pasan una sola vez y no son "estado": van por un canal, no por el StateFlow. */
 sealed interface ExploreEvent {
-    data class Play(val video: OnlineVideo, val stream: StreamSource) : ExploreEvent
+    data class Play(val video: OnlineVideo, val stream: StreamSource, val audioOnly: Boolean) : ExploreEvent
     data class ResolveFailed(val error: MediaError) : ExploreEvent
 }
 
 class ExploreViewModel(
     private val catalog: OnlineCatalogRepository,
     private val recommendations: RecommendationRepository,
+    /** Si ahora se está con datos móviles; decide la calidad automática. */
+    private val isMeteredConnection: () -> Boolean,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -131,11 +134,18 @@ class ExploreViewModel(
         resolveJob?.cancel() // si el usuario toca otro video, el anterior ya no interesa
         resolveJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(resolvingId = video.id)
-            val result = catalog.resolveStream(video, _uiState.value.audioOnly)
+            val audioOnly = _uiState.value.audioOnly
+            // Todo video empieza en calidad automática; si se quiere otra, se cambia ya
+            // viéndolo, desde el reproductor.
+            val result = catalog.resolveStream(
+                video = video,
+                audioOnly = audioOnly,
+                maxHeight = VideoQuality.AUTO.heightFor(isMeteredConnection()),
+            )
             _uiState.value = _uiState.value.copy(resolvingId = null)
             _events.send(
                 result.fold(
-                    onSuccess = { ExploreEvent.Play(video, it) },
+                    onSuccess = { ExploreEvent.Play(video, it, audioOnly) },
                     onFailure = { ExploreEvent.ResolveFailed(it.asMediaError()) },
                 ),
             )
@@ -182,7 +192,11 @@ class ExploreViewModel(
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as ExoTubeApp
-                ExploreViewModel(app.container.onlineCatalog, app.container.recommendations)
+                ExploreViewModel(
+                    catalog = app.container.onlineCatalog,
+                    recommendations = app.container.recommendations,
+                    isMeteredConnection = app.container.connection::isMetered,
+                )
             }
         }
     }

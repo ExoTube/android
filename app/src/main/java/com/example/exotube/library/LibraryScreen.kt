@@ -69,6 +69,7 @@ fun LibraryRoute(
     onTrim: (LibraryItem) -> Unit,
     onChangeCover: (LibraryItem) -> Unit,
     onRename: (LibraryItem) -> Unit,
+    onDelete: (LibraryItem) -> Unit,
     contentPadding: PaddingValues,
     viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
 ) {
@@ -101,6 +102,7 @@ fun LibraryRoute(
         onTrim = onTrim,
         onChangeCover = onChangeCover,
         onRename = onRename,
+        onDelete = onDelete,
         onAllowPhoneMusic = { requestPermission.launch(AudioLibraryPermission.name) },
         contentPadding = contentPadding,
     )
@@ -120,6 +122,7 @@ fun LibraryScreen(
     onTrim: (LibraryItem) -> Unit,
     onChangeCover: (LibraryItem) -> Unit,
     onRename: (LibraryItem) -> Unit,
+    onDelete: (LibraryItem) -> Unit,
     onAllowPhoneMusic: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
@@ -163,6 +166,9 @@ fun LibraryScreen(
                             add(RowAction(R.string.cover_action, R.drawable.ic_image) { onChangeCover(item) })
                             add(RowAction(R.string.rename_action, R.drawable.ic_edit) { onRename(item) })
                         }
+                        // Borrar sirve igual para canciones y videos; va el último, lejos del
+                        // dedo, porque es lo único del menú que no tiene vuelta atrás.
+                        add(RowAction(R.string.delete_action, R.drawable.ic_delete) { onDelete(item) })
                     },
                 )
             }
@@ -349,6 +355,7 @@ private fun LibraryScreenPreview() {
             onTrim = {},
             onChangeCover = {},
             onRename = {},
+            onDelete = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -372,6 +379,7 @@ private fun LibraryScreenWithBannerPreview() {
             onTrim = {},
             onChangeCover = {},
             onRename = {},
+            onDelete = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -395,6 +403,7 @@ private fun LibrarySearchWithoutResultsPreview() {
             onTrim = {},
             onChangeCover = {},
             onRename = {},
+            onDelete = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )
@@ -417,6 +426,7 @@ private fun EmptyLibraryPreview() {
             onTrim = {},
             onChangeCover = {},
             onRename = {},
+            onDelete = {},
             onAllowPhoneMusic = {},
             contentPadding = PaddingValues(),
         )

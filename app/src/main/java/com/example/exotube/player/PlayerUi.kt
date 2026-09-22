@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +64,7 @@ import androidx.media3.ui.compose.state.rememberProgressStateWithTickInterval
 import androidx.media3.ui.compose.state.rememberShuffleButtonState
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaType
+import com.example.exotube.domain.model.VideoQuality
 import com.example.exotube.ui.components.MediaArtwork
 import com.example.exotube.ui.components.PlayingBars
 import com.example.exotube.ui.formatDuration
@@ -153,6 +156,9 @@ fun NowPlayingScreen(
     /** null si el teléfono no admite la ventana flotante. */
     onEnterPictureInPicture: (() -> Unit)?,
     onCollapse: () -> Unit,
+    /** El video en línea que suena, si lo es; null con los archivos del teléfono. */
+    online: OnlinePlayback?,
+    onChangeQuality: (VideoQuality) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -168,6 +174,8 @@ fun NowPlayingScreen(
             onEnterFullscreen = onEnterFullscreen,
             onEnterPictureInPicture = onEnterPictureInPicture,
             onCollapse = onCollapse,
+            online = online,
+            onChangeQuality = onChangeQuality,
         )
     }
 }
@@ -194,6 +202,8 @@ private fun NowPlayingContent(
     onEnterFullscreen: () -> Unit,
     onEnterPictureInPicture: (() -> Unit)?,
     onCollapse: () -> Unit,
+    online: OnlinePlayback?,
+    onChangeQuality: (VideoQuality) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val current = rememberCurrentMediaItemState(player)
@@ -202,6 +212,11 @@ private fun NowPlayingContent(
     // showPlay es "toca mostrar el botón de reproducir", o sea: ahora mismo NO está sonando.
     val isPlaying = !playPause.showPlay
     val isVideo = metadata.toMediaType() == MediaType.VIDEO
+    // Solo se elige calidad con un video en línea que traiga imagen: un archivo del teléfono
+    // tiene la que tiene, y en modo ahorro de datos no hay imagen que elegir.
+    val onlineNow = online?.takeIf { it.video.url == current.mediaItem?.mediaId }
+    val canChooseQuality = isVideo && onlineNow != null && !onlineNow.audioOnly
+    var showQuality by rememberSaveable { mutableStateOf(false) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -224,6 +239,14 @@ private fun NowPlayingContent(
             )
             // La ventana flotante solo tiene sentido con imagen; para una canción basta con que
             // el sonido siga, que ya ocurre al salir de la app.
+            if (canChooseQuality) {
+                IconButton(onClick = { showQuality = true }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_hd),
+                        contentDescription = stringResource(R.string.quality_open),
+                    )
+                }
+            }
             if (isVideo && onEnterPictureInPicture != null) {
                 IconButton(onClick = onEnterPictureInPicture) {
                     Icon(
@@ -242,7 +265,11 @@ private fun NowPlayingContent(
 
         Spacer(Modifier.weight(1f))
         if (isVideo) {
-            VideoFrame(player = player, onEnterFullscreen = onEnterFullscreen)
+            VideoFrame(
+                player = player,
+                isLoadingStream = onlineNow?.isLoadingStream == true,
+                onEnterFullscreen = onEnterFullscreen,
+            )
         } else {
             BreathingArtwork(
                 uri = metadata.artworkUri?.toString(),
@@ -283,6 +310,15 @@ private fun NowPlayingContent(
         PlaybackControls(player, playPause, repeatPlan, onCycleRepeat)
         Spacer(Modifier.height(32.dp))
     }
+
+    if (showQuality && canChooseQuality && onlineNow != null) {
+        QualitySheet(
+            player = player,
+            selected = onlineNow.quality,
+            onSelect = onChangeQuality,
+            onDismiss = { showQuality = false },
+        )
+    }
 }
 
 /**
@@ -290,9 +326,12 @@ private fun NowPlayingContent(
  *
  * ContentFrame dibuja la imagen y respeta su relación de aspecto; el botón va encima, donde lo
  * espera cualquiera que haya visto un video en un teléfono.
+ *
+ * Con [isLoadingStream] se está pidiendo a YouTube otra dirección (otra calidad, o recuperar un
+ * fallo): una rueda en el centro dice que algo está pasando y que no hace falta tocar nada.
  */
 @Composable
-private fun VideoFrame(player: Player, onEnterFullscreen: () -> Unit) {
+private fun VideoFrame(player: Player, isLoadingStream: Boolean, onEnterFullscreen: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -301,6 +340,12 @@ private fun VideoFrame(player: Player, onEnterFullscreen: () -> Unit) {
             .background(Color.Black),
     ) {
         ContentFrame(player = player, modifier = Modifier.fillMaxSize())
+        if (isLoadingStream) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
         IconButton(
             onClick = onEnterFullscreen,
             modifier = Modifier.align(Alignment.BottomEnd),

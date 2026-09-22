@@ -71,6 +71,7 @@ import com.example.exotube.playlist.PlaylistDetailRoute
 import com.example.exotube.playlist.PlaylistsScreen
 import com.example.exotube.playlist.PlaylistsViewModel
 import com.example.exotube.songedit.RenameSongDialog
+import com.example.exotube.songedit.DeleteMediaDialog
 import com.example.exotube.songedit.SongEditEvent
 import com.example.exotube.songedit.SongEditViewModel
 import com.example.exotube.trim.TrimRoute
@@ -127,6 +128,7 @@ fun AppShell(
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var itemToTrim by remember { mutableStateOf<LibraryItem?>(null) }
     var itemToRename by remember { mutableStateOf<LibraryItem?>(null) }
+    var itemToDelete by remember { mutableStateOf<LibraryItem?>(null) }
     var itemForPlaylist by remember { mutableStateOf<LibraryItem?>(null) }
     // Crear playlist: null = diálogo cerrado; Some(uri?) = abierto (y, si hay uri, se añade al crearla).
     var newPlaylistRequest by remember { mutableStateOf<NewPlaylistRequest?>(null) }
@@ -135,18 +137,22 @@ fun AppShell(
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
 
-    // Si el reproductor falla (lo habitual: un enlace en línea que caducó), hay que decirlo:
-    // si no, el usuario toca un video y no pasa nada.
+    // Si el reproductor falla y no lo pudo arreglar solo, hay que decirlo: si no, el usuario
+    // toca un video y no pasa nada.
     val context = LocalContext.current
     LaunchedEffect(playerViewModel) {
-        playerViewModel.errors.collect {
-            Toast.makeText(context, R.string.player_error, Toast.LENGTH_LONG).show()
+        playerViewModel.errors.collect { messageRes ->
+            Toast.makeText(context, messageRes, Toast.LENGTH_LONG).show()
         }
     }
+    val online by playerViewModel.online.collectAsStateWithLifecycle()
 
-    // Cambiar la portada y cambiar el nombre comparten el permiso de escritura que pide Android.
+    // Cambiar la portada, el nombre y borrar comparten el permiso que pide Android.
     val songEditViewModel: SongEditViewModel = viewModel(factory = SongEditViewModel.Factory)
-    val onChangeCover = rememberChangeCoverAction(songEditViewModel)
+    val onChangeCover = rememberChangeCoverAction(
+        viewModel = songEditViewModel,
+        onDeleted = playerViewModel::removeFromQueue,
+    )
     val workingMessage by songEditViewModel.workingMessage.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
@@ -179,13 +185,14 @@ fun AppShell(
                         onTrim = { itemToTrim = it },
                         onChangeCover = onChangeCover,
                         onRename = { itemToRename = it },
+                        onDelete = { itemToDelete = it },
                         contentPadding = padding,
                     )
                 }
                 composable<ExploreDestination> {
                     ExploreRoute(
-                        onPlayOnline = { video, stream ->
-                            playerViewModel.playOnline(video, stream)
+                        onPlayOnline = { video, stream, audioOnly ->
+                            playerViewModel.playOnline(video, stream, audioOnly)
                             showNowPlaying = true // lo que se toca se ve: abrimos el reproductor
                         },
                         onGoToLibrary = { navController.navigate(LibraryDestination) },
@@ -217,6 +224,7 @@ fun AppShell(
                             onTrim = { itemToTrim = it },
                             onChangeCover = onChangeCover,
                             onRename = { itemToRename = it },
+                            onDelete = { itemToDelete = it },
                             onBack = { navController.popBackStack() },
                             contentPadding = padding,
                         )
@@ -257,6 +265,8 @@ fun AppShell(
                     onEnterFullscreen = { isFullscreen = true },
                     onEnterPictureInPicture = onEnterPictureInPicture,
                     onCollapse = { showNowPlaying = false },
+                    online = online,
+                    onChangeQuality = playerViewModel::changeQuality,
                 )
             }
         }
@@ -291,6 +301,17 @@ fun AppShell(
                 itemToRename = null
             },
             onDismiss = { itemToRename = null },
+        )
+    }
+
+    itemToDelete?.let { item ->
+        DeleteMediaDialog(
+            item = item,
+            onConfirm = {
+                songEditViewModel.delete(item)
+                itemToDelete = null
+            },
+            onDismiss = { itemToDelete = null },
         )
     }
 
@@ -333,7 +354,10 @@ private data class NewPlaylistRequest(val addingMediaUri: String?)
  * No dibuja nada: solo registra los lanzadores del sistema y devuelve la función a llamar.
  */
 @Composable
-private fun rememberChangeCoverAction(viewModel: SongEditViewModel): (LibraryItem) -> Unit {
+private fun rememberChangeCoverAction(
+    viewModel: SongEditViewModel,
+    onDeleted: (uri: String) -> Unit,
+): (LibraryItem) -> Unit {
     val context = LocalContext.current
     // De qué canción era la portada. El selector de fotos es del sistema y no se lo puede llevar.
     var pendingItem by remember { mutableStateOf<LibraryItem?>(null) }
@@ -349,7 +373,7 @@ private fun rememberChangeCoverAction(viewModel: SongEditViewModel): (LibraryIte
         if (result.resultCode == Activity.RESULT_OK) viewModel.retryPending() else viewModel.cancelPending()
     }
 
-    // Los avisos son de las dos operaciones, no solo de la portada: el ViewModel es el mismo.
+    // Los avisos son de todas las operaciones, no solo de la portada: el ViewModel es el mismo.
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
@@ -360,6 +384,7 @@ private fun rememberChangeCoverAction(viewModel: SongEditViewModel): (LibraryIte
                     context.getString(event.messageRes, event.cause.orEmpty()),
                     Toast.LENGTH_LONG,
                 ).show()
+                is SongEditEvent.Deleted -> onDeleted(event.uri)
                 is SongEditEvent.NeedsPermission ->
                     grantWrite.launch(IntentSenderRequest.Builder(event.request).build())
             }

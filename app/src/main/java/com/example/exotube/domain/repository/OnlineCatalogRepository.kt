@@ -24,7 +24,20 @@ interface OnlineCatalogRepository {
      * Pide la dirección directa para reproducir [video] sin descargarlo.
      *
      * Con [audioOnly] trae solo la pista de audio: gasta mucho menos si se está con datos.
+     * Si no, trae la mejor imagen que no pase de [maxHeight] píxeles de alto.
      * La dirección caduca, así que hay que pedirla justo antes de reproducir y no guardarla.
      */
-    suspend fun resolveStream(video: OnlineVideo, audioOnly: Boolean): Result<StreamSource>
+    suspend fun resolveStream(
+        video: OnlineVideo,
+        audioOnly: Boolean,
+        maxHeight: Int,
+    ): Result<StreamSource>
+
+    /**
+     * Olvida las direcciones guardadas de [video], para que la próxima vez se pidan de nuevo.
+     *
+     * Hace falta cuando el reproductor no consigue usar una: si se quedara guardada, volver a
+     * tocar el video repetiría el mismo fallo una y otra vez.
+     */
+    fun forget(video: OnlineVideo)
 }

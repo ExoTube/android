@@ -4,10 +4,12 @@ import android.app.Application
 import android.content.ComponentName
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.media3.common.C
@@ -18,23 +20,49 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
+import com.example.exotube.ExoTubeApp
+import com.example.exotube.R
+import com.example.exotube.data.ytdlp.EngineUpdateWorker
 import com.example.exotube.domain.model.LibraryItem
 import com.example.exotube.domain.model.MediaType
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.domain.model.VideoQuality
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/**
+ * Lo que hay que recordar del video en línea que está sonando.
+ *
+ * El reproductor solo guarda la dirección que le dimos, y esa dirección caduca y va atada a una
+ * calidad concreta. Para cambiar de calidad, o para pedir una dirección nueva cuando la vieja
+ * falla, hace falta saber de qué video se trataba: eso es esto.
+ */
+data class OnlinePlayback(
+    val video: OnlineVideo,
+    /** Modo ahorro de datos: solo sonido, así que no hay calidad de imagen que elegir. */
+    val audioOnly: Boolean,
+    /** Cada video empieza en automático; el usuario la cambia desde el reproductor. */
+    val quality: VideoQuality = VideoQuality.AUTO,
+    /** true mientras se le pide a YouTube la dirección nueva (otra calidad, o recuperar un fallo). */
+    val isLoadingStream: Boolean = false,
+)
 
 /**
  * Puente entre la UI y [PlaybackService]. Se conecta con un MediaController, que implementa la
  * misma interfaz [Player] que ExoPlayer: la UI no sabe (ni le importa) que el reproductor real
  * vive en un servicio.
  */
-class PlayerViewModel(application: Application) : ViewModel() {
+class PlayerViewModel(private val application: Application) : ViewModel() {
+
+    private val container get() = (application as ExoTubeApp).container
 
     /** null mientras se conecta con el servicio (unos milisegundos). */
     private val _player = MutableStateFlow<Player?>(null)
@@ -44,14 +72,24 @@ class PlayerViewModel(application: Application) : ViewModel() {
     private val _repeatPlan = MutableStateFlow(RepeatPlan.OFF)
     val repeatPlan: StateFlow<RepeatPlan> = _repeatPlan.asStateFlow()
 
+    /** El video en línea que suena, o null si lo que suena es un archivo del teléfono. */
+    private val _online = MutableStateFlow<OnlinePlayback?>(null)
+    val online: StateFlow<OnlinePlayback?> = _online.asStateFlow()
+
+    /** Pedir una dirección nueva a YouTube: solo una a la vez, la última que se pidió. */
+    private var streamJob: Job? = null
+
+    /** Cuándo se intentó recuperar un fallo por última vez; null si aún no hizo falta. */
+    private var lastRecoveryAtMs: Long? = null
+
     // Un fallo de reproducción pasa una vez: si fuera estado, al girar la pantalla se volvería
-    // a avisar de un error viejo.
-    private val _errors = Channel<PlaybackException>(Channel.CONFLATED)
-    val errors: Flow<PlaybackException> = _errors.receiveAsFlow()
+    // a avisar de un error viejo. Lleva el texto que hay que enseñar.
+    private val _errors = Channel<Int>(Channel.CONFLATED)
+    val errors: Flow<Int> = _errors.receiveAsFlow()
 
     private val playerListener = object : Player.Listener {
         override fun onPlayerError(error: PlaybackException) {
-            _errors.trySend(error)
+            if (!recoverOnlineStream()) _errors.trySend(R.string.player_error)
         }
     }
 
@@ -89,6 +127,7 @@ class PlayerViewModel(application: Application) : ViewModel() {
     fun playQueue(items: List<LibraryItem>, startIndex: Int = 0, shuffle: Boolean = false) {
         val player = _player.value ?: return
         if (items.isEmpty()) return
+        forgetOnline()
         player.shuffleModeEnabled = shuffle
         val first = if (shuffle) items.indices.random() else startIndex
         player.setMediaItems(items.map { it.toMediaItem() }, first, C.TIME_UNSET)
@@ -101,12 +140,115 @@ class PlayerViewModel(application: Application) : ViewModel() {
      * Va solo en la cola: cada video en línea hay que resolverlo por separado, así que no tiene
      * sentido preparar una lista entera por adelantado.
      */
-    fun playOnline(video: OnlineVideo, stream: StreamSource) {
+    fun playOnline(video: OnlineVideo, stream: StreamSource, audioOnly: Boolean) {
         val player = _player.value ?: return
+        forgetOnline()
+        _online.value = OnlinePlayback(video, audioOnly)
         player.shuffleModeEnabled = false
         player.setMediaItem(video.toMediaItem(stream))
         player.prepare()
         player.play()
+    }
+
+    /**
+     * Cambia la calidad del video en línea que suena, sin cortarlo.
+     *
+     * Mientras YouTube responde, el video sigue viéndose en la calidad de antes; solo cuando la
+     * dirección nueva está lista se cambia, en el mismo segundo en que iba. Si falla, se queda
+     * como estaba y se avisa: mejor eso que dejar la pantalla en negro.
+     */
+    fun changeQuality(quality: VideoQuality) {
+        val online = _online.value ?: return
+        if (online.audioOnly || quality == online.quality) return
+        _online.value = online.copy(quality = quality, isLoadingStream = true)
+        loadStream(online.video, audioOnly = false, quality) {
+            _online.update { it?.copy(quality = online.quality) }
+            _errors.trySend(R.string.quality_change_failed)
+        }
+    }
+
+    /**
+     * Intenta arreglar solo un fallo de un video en línea, con una dirección recién pedida.
+     *
+     * Casi siempre que un video en línea falla es porque su dirección ya no sirve (caducó, o
+     * YouTube la rechazó). Antes se guardaba y se reutilizaba al volver a tocar el video, así
+     * que el fallo se repetía para siempre. Ahora se olvida y se pide otra, sin que el usuario
+     * tenga que hacer nada.
+     *
+     * Como mucho una vez por minuto: si la dirección nueva también falla, el problema es otro y
+     * reintentar sin parar solo gastaría batería. En ese caso se avisa y, por si la culpa es de
+     * un yt-dlp desactualizado (YouTube cambia a menudo), se le pide que se actualice ya.
+     *
+     * @return true si se está recuperando; false si no era un video en línea o ya se intentó.
+     */
+    private fun recoverOnlineStream(): Boolean {
+        val online = _online.value ?: return false
+        val player = _player.value ?: return false
+        if (player.currentMediaItem?.mediaId != online.video.url) return false
+
+        container.onlineCatalog.forget(online.video)
+        val now = SystemClock.elapsedRealtime()
+        val last = lastRecoveryAtMs
+        if (last != null && now - last < RECOVERY_COOLDOWN_MS) {
+            EngineUpdateWorker.runNow(application)
+            return false
+        }
+        lastRecoveryAtMs = now
+
+        _online.value = online.copy(isLoadingStream = true)
+        loadStream(online.video, online.audioOnly, online.quality) {
+            _errors.trySend(R.string.player_error)
+        }
+        return true
+    }
+
+    /** Pide a YouTube una dirección para [video] y, cuando llega, la pone en el reproductor. */
+    private fun loadStream(
+        video: OnlineVideo,
+        audioOnly: Boolean,
+        quality: VideoQuality,
+        onFailure: (Throwable) -> Unit,
+    ) {
+        streamJob?.cancel()
+        streamJob = viewModelScope.launch {
+            container.onlineCatalog
+                .resolveStream(video, audioOnly, quality.heightFor(container.connection.isMetered()))
+                .onSuccess { swapStream(video, it) }
+                .onFailure(onFailure)
+            _online.update { it?.copy(isLoadingStream = false) }
+        }
+    }
+
+    /**
+     * Cambia la dirección de lo que suena por [stream], en el mismo punto y sin pausar si estaba
+     * sonando. No hace nada si mientras tanto el usuario ya se fue a otra cosa.
+     */
+    private fun swapStream(video: OnlineVideo, stream: StreamSource) {
+        val player = _player.value ?: return
+        if (player.currentMediaItem?.mediaId != video.url) return
+        val position = player.currentPosition
+        val keepPlaying = player.playWhenReady
+        player.setMediaItem(video.toMediaItem(stream), position)
+        player.prepare()
+        player.playWhenReady = keepPlaying
+    }
+
+    private fun forgetOnline() {
+        streamJob?.cancel()
+        _online.value = null
+        lastRecoveryAtMs = null
+    }
+
+    /**
+     * Saca de la cola todo lo que apunte a [uri], que acaba de borrarse del teléfono. Si era lo
+     * que sonaba, el reproductor pasa solo al siguiente; si no, nadie nota nada.
+     */
+    fun removeFromQueue(uri: String) {
+        val player = _player.value ?: return
+        // De atrás hacia delante: al quitar uno, los índices de los anteriores no se mueven.
+        for (index in player.mediaItemCount - 1 downTo 0) {
+            if (player.getMediaItemAt(index).mediaId == uri) player.removeMediaItem(index)
+        }
     }
 
     /** Pasa al siguiente modo de bucle: sin bucle → 1 vez → 2 veces → siempre → sin bucle. */
@@ -127,6 +269,9 @@ class PlayerViewModel(application: Application) : ViewModel() {
     }
 
     companion object {
+        /** Entre dos intentos de recuperar un video en línea que falla. */
+        private const val RECOVERY_COOLDOWN_MS = 60_000L
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 PlayerViewModel(this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]!!)

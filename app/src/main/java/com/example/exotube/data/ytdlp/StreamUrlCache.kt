@@ -36,6 +36,12 @@ internal class StreamUrlCache(
         entries[key] = Entry(source, validUntil(source))
     }
 
+    /** Olvida todo lo guardado cuya clave empiece por [prefix] (un video en todas sus calidades). */
+    @Synchronized
+    fun removeStartingWith(prefix: String) {
+        entries.keys.removeAll { it.startsWith(prefix) }
+    }
+
     /**
      * Cuándo deja de servir: la más temprana de las caducidades de sus direcciones, menos un
      * margen para no empezar a reproducir justo cuando expira.

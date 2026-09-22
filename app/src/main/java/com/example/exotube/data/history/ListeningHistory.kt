@@ -67,6 +67,10 @@ interface ListeningDao {
     @Query("SELECT COUNT(*) FROM listening_history")
     suspend fun count(): Int
 
+    /** Al borrar una canción del teléfono: que deje de servir para recomendar. */
+    @Query("DELETE FROM listening_history WHERE mediaKey = :mediaKey")
+    suspend fun forget(mediaKey: String)
+
     /** Para el día que se quiera ofrecer "borrar mi historial" desde los ajustes. */
     @Query("DELETE FROM listening_history")
     suspend fun clear()
