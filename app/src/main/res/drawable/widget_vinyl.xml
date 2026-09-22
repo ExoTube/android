@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    El vinilo del widget. Los brillos van en dos cuñas opuestas y distintas a propósito: un disco
+    perfectamente simétrico parecería quieto aunque girase. El círculo del centro (la etiqueta)
+    queda debajo de la portada; se ve solo cuando la canción no tiene carátula.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <path android:fillColor="#FF0C0C0C" android:pathData="M1,100 a99,99 0 1,0 198,0 a99,99 0 1,0 -198,0" />
+    <!-- Un canto claro: sin él, el disco negro se perdería sobre el fondo oscuro del widget. -->
+    <path android:strokeColor="#40FFFFFF" android:strokeWidth="1.5" android:pathData="M1.75,100 a98.25,98.25 0 1,0 196.5,0 a98.25,98.25 0 1,0 -196.5,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M7,100 a93,93 0 1,0 186,0 a93,93 0 1,0 -186,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M12,100 a88,88 0 1,0 176,0 a88,88 0 1,0 -176,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M17,100 a83,83 0 1,0 166,0 a83,83 0 1,0 -166,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M22,100 a78,78 0 1,0 156,0 a78,78 0 1,0 -156,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M27,100 a73,73 0 1,0 146,0 a73,73 0 1,0 -146,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M32,100 a68,68 0 1,0 136,0 a68,68 0 1,0 -136,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M37,100 a63,63 0 1,0 126,0 a63,63 0 1,0 -126,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M42,100 a58,58 0 1,0 116,0 a58,58 0 1,0 -116,0" />
+    <path android:strokeColor="#FF262626" android:strokeWidth="0.9" android:pathData="M47,100 a53,53 0 1,0 106,0 a53,53 0 1,0 -106,0" />
+    <path android:fillColor="#26FFFFFF" android:pathData="M133.18,8.85 A97,97 0 0,1 176.44,40.28 L137.82,70.45 A48,48 0 0,0 116.42,54.89 Z" />
+    <path android:fillColor="#14FFFFFF" android:pathData="M54.46,185.65 A97,97 0 0,1 25.69,162.35 L63.23,130.85 A48,48 0 0,0 77.47,142.38 Z" />
+    <path android:fillColor="#0DFFFFFF" android:pathData="M191.15,133.18 A97,97 0 0,1 184.00,148.50 L141.57,124.00 A48,48 0 0,0 145.11,116.42 Z" />
+    <path android:fillColor="#FF16201A" android:pathData="M54,100 a46,46 0 1,0 92,0 a46,46 0 1,0 -92,0" />
+    <path android:strokeColor="#FF2EE67A" android:strokeWidth="2" android:pathData="M54,100 a46,46 0 1,0 92,0 a46,46 0 1,0 -92,0" />
+    <path android:fillColor="#FF2EE67A" android:pathData="M95,100 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path android:fillColor="#FF0C0C0C" android:pathData="M97.5,100 a2.5,2.5 0 1,0 5.0,0 a2.5,2.5 0 1,0 -5.0,0" />
+</vector>

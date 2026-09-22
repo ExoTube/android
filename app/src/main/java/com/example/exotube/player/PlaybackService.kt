@@ -11,6 +11,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.exotube.data.history.ListeningRecorder
 import androidx.media3.session.CacheBitmapLoader
@@ -23,6 +24,7 @@ import androidx.media3.session.SessionResult
 import com.example.exotube.ExoTubeApp
 import com.example.exotube.MainActivity
 import com.example.exotube.R
+import com.example.exotube.widget.NowPlayingWidgetUpdater
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 
@@ -38,6 +40,9 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
     private var artworkLoader: MediaFileBitmapLoader? = null
+
+    /** Pinta el widget "tocadiscos" de la pantalla de inicio con lo que suena. */
+    private var widgetUpdater: NowPlayingWidgetUpdater? = null
 
     /** Ecualizador y volumen extra; los comparte con la pantalla de ajustes del reproductor. */
     private val audioEffects by lazy { (application as ExoTubeApp).container.audioEffects }
@@ -55,6 +60,7 @@ class PlaybackService : MediaSessionService() {
             // Sabe leer archivos del teléfono y, además, juntar la imagen y el sonido de un
             // video en línea que venga en dos direcciones distintas.
             .setMediaSourceFactory(StreamingMediaSourceFactory(this))
+            .setLoadControl(quickStartLoadControl())
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -90,6 +96,7 @@ class PlaybackService : MediaSessionService() {
             // Carátulas sacadas del propio archivo; CacheBitmapLoader evita recalcular la misma.
             .setBitmapLoader(CacheBitmapLoader(loader))
             .build()
+            .also { session -> widgetUpdater = NowPlayingWidgetUpdater(this, session).apply { start() } }
 
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider.Builder(this).build().apply {
@@ -106,6 +113,9 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        // Antes de soltar el reproductor: el widget se desengancha de él y vuelve a "Nada sonando".
+        widgetUpdater?.stop()
+        widgetUpdater = null
         mediaSession?.run {
             player.release()
             release()
@@ -116,6 +126,23 @@ class PlaybackService : MediaSessionService() {
         audioEffects.release()
         super.onDestroy()
     }
+
+    /**
+     * Cuánto video hay que tener guardado antes de empezar a reproducir.
+     *
+     * Por defecto Media3 espera a tener 2,5 segundos; con un video en línea eso se nota como
+     * espera en negro. Con 1 segundo arranca antes. Después de un corte a mitad del video
+     * (cuando la conexión flojea) se sigue esperando lo de siempre, 5 segundos: ahí conviene
+     * más aguantar un poco que volver a cortarse enseguida.
+     */
+    private fun quickStartLoadControl(): DefaultLoadControl = DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+            DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+            /* bufferForPlaybackMs = */ 1_000,
+            DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS,
+        )
+        .build()
 
     /** Activa el bucle que pidió la pantalla y publica cuántas repeticiones quedan. */
     private fun applyRepeatPlan(plan: RepeatPlan) {

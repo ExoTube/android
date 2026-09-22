@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lado de la tarjeta cuadrada del widget "tocadiscos" (ver layout/widget_now_playing.xml). -->
+    <dimen name="widget_card_size">264dp</dimen>
+</resources>

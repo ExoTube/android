@@ -241,4 +241,15 @@
     <string name="whats_new_continue">Empezar</string>
     <string name="whats_new_notes">VIDEOS\n• Videoclips de verdad en Explorar, no solo el audio, hasta 1080p.\n• Pantalla completa en horizontal, en línea y con lo descargado.\n• Ventana flotante: el video sigue encima de otras apps al salir.\n• Los enlaces cargan más rápido y se recuerdan un rato.\n\nTU MÚSICA\n• Pestaña Álbumes: tus canciones agrupadas por álbum o por artista.\n• Recortar audio: quédate con el trozo que quieras, en un archivo aparte.\n• Cambiar la portada de una canción por la foto que elijas.\n• Cambiar el nombre de una canción.\n\nSONIDO\n• Ecualizador con refuerzo de volumen.\n\nY AHORA\n• ExoTube te avisa sola cuando hay una versión nueva y la instala desde aquí.</string>
 
+
+    <!-- Widget del tocadiscos en la pantalla de inicio -->
+    <string name="widget_name">Tocadiscos ExoTube</string>
+    <string name="widget_description">Lo que suena, en un disco que gira. Con los botones para pausar y cambiar de canción.</string>
+    <string name="widget_idle_title">Nada sonando</string>
+    <string name="widget_idle_subtitle">Toca para abrir ExoTube</string>
+    <string name="widget_zero_time">0:00</string>
+    <string name="widget_play">Reproducir</string>
+    <string name="widget_pause">Pausar</string>
+    <string name="widget_previous">Anterior</string>
+    <string name="widget_next">Siguiente</string>
 </resources>

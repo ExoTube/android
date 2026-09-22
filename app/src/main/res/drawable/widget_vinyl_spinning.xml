@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    El vinilo, preparado para girar. No lo mueve la app: lo mueve el propio lanzador, porque va
+    dentro de una rueda de "cargando" (ProgressBar), que es de lo poco que un widget puede animar
+    solo. Así gira suave y sin gastar batería en actualizaciones.
+-->
+<rotate xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/widget_vinyl"
+    android:fromDegrees="0"
+    android:pivotX="50%"
+    android:pivotY="50%"
+    android:toDegrees="360" />

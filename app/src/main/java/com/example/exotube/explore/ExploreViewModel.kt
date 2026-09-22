@@ -15,14 +15,18 @@ import com.example.exotube.domain.model.StreamSource
 import com.example.exotube.domain.model.VideoQuality
 import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.domain.repository.RecommendationRepository
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Atajos de la pantalla Explorar.
@@ -91,6 +95,23 @@ class ExploreViewModel(
     private var searchJob: Job? = null
     private var resolveJob: Job? = null
 
+    /** El recorrido que va preparando los primeros videos de la lista, uno tras otro. */
+    private var prefetchJob: Job? = null
+
+    /** El video que se está preparando ahora mismo, si hay alguno. */
+    private var prefetching: Prefetch? = null
+
+    /**
+     * Un video cuyo enlace se está pidiendo por adelantado. [work] vive fuera del recorrido
+     * ([prefetchJob]) a propósito: si el usuario toca justo este video, se para el recorrido
+     * pero este trabajo sigue y se aprovecha.
+     */
+    private class Prefetch(
+        val videoId: String,
+        val audioOnly: Boolean,
+        val work: Deferred<Result<StreamSource>>,
+    )
+
     init {
         // Se abre en "Para ti" si hay historial; si no, en Música, que es lo útil el primer día.
         viewModelScope.launch {
@@ -132,16 +153,17 @@ class ExploreViewModel(
      */
     fun onVideoSelected(video: OnlineVideo) {
         resolveJob?.cancel() // si el usuario toca otro video, el anterior ya no interesa
+        // Lo que se estuviera preparando deja paso a lo que el usuario acaba de pedir, salvo
+        // que sea justo este video: entonces se espera a ese trabajo en vez de empezar otro.
+        val alreadyStarted = stopPrefetching(except = video.id)
         resolveJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(resolvingId = video.id)
             val audioOnly = _uiState.value.audioOnly
-            // Todo video empieza en calidad automática; si se quiere otra, se cambia ya
-            // viéndolo, desde el reproductor.
-            val result = catalog.resolveStream(
-                video = video,
-                audioOnly = audioOnly,
-                maxHeight = VideoQuality.AUTO.heightFor(isMeteredConnection()),
-            )
+            val result = if (alreadyStarted != null) {
+                awaitOrCancel(alreadyStarted.work)
+            } else {
+                resolve(video, audioOnly)
+            }
             _uiState.value = _uiState.value.copy(resolvingId = null)
             _events.send(
                 result.fold(
@@ -150,6 +172,76 @@ class ExploreViewModel(
                 ),
             )
         }
+    }
+
+    /**
+     * Todo video empieza en calidad automática; si se quiere otra, se cambia ya viéndolo, desde
+     * el reproductor. Si el enlace ya se pidió antes (por adelantado), sale de la caché al momento.
+     */
+    private suspend fun resolve(video: OnlineVideo, audioOnly: Boolean): Result<StreamSource> =
+        catalog.resolveStream(
+            video = video,
+            audioOnly = audioOnly,
+            maxHeight = VideoQuality.AUTO.heightFor(isMeteredConnection()),
+        )
+
+    /** Si el usuario se va a otro video mientras se espera, este trabajo ya no sirve a nadie. */
+    private suspend fun awaitOrCancel(work: Deferred<Result<StreamSource>>): Result<StreamSource> =
+        try {
+            work.await()
+        } catch (e: CancellationException) {
+            work.cancel()
+            throw e
+        }
+
+    /**
+     * Pide por adelantado los enlaces de los primeros videos de la lista, para que al tocar uno
+     * empiece casi al momento.
+     *
+     * Casi toda la espera al tocar un video es yt-dlp preguntándole a YouTube por el enlace (unos
+     * segundos); el video en sí arranca enseguida. Así que esa pregunta se hace mientras el
+     * usuario todavía está leyendo la lista. Lo que se prepara queda en la caché del catálogo.
+     *
+     * Con límites, para no gastar batería ni datos por nada:
+     *  - solo los [PREFETCH_COUNT] primeros, que es lo que se ve sin desplazarse;
+     *  - de uno en uno, nunca varios yt-dlp a la vez;
+     *  - después de una pausa, para no competir con las miniaturas que se están cargando.
+     * Solo se piden enlaces, unos pocos kilobytes; del video no se descarga nada.
+     */
+    private fun prefetchFirst(results: ExploreResults) {
+        stopPrefetching()
+        val videos = when (results) {
+            is ExploreResults.Ready -> results.videos
+            is ExploreResults.ForYou -> results.blocks.flatMap { it.videos }
+            else -> return
+        }.take(PREFETCH_COUNT)
+        if (videos.isEmpty()) return
+
+        prefetchJob = viewModelScope.launch {
+            delay(PREFETCH_DELAY_MS)
+            for (video in videos) {
+                val audioOnly = _uiState.value.audioOnly
+                // En viewModelScope y no dentro de este recorrido: ver [Prefetch].
+                val work = viewModelScope.async { resolve(video, audioOnly) }
+                prefetching = Prefetch(video.id, audioOnly, work)
+                work.join()
+                prefetching = null
+            }
+        }
+    }
+
+    /**
+     * Para el recorrido y cancela lo que se estuviera preparando, salvo que sea el video
+     * [except] (con el mismo modo de solo audio): ese trabajo se devuelve para aprovecharlo.
+     */
+    private fun stopPrefetching(except: String? = null): Prefetch? {
+        prefetchJob?.cancel()
+        prefetchJob = null
+        val current = prefetching ?: return null
+        prefetching = null
+        if (current.videoId == except && current.audioOnly == _uiState.value.audioOnly) return current
+        current.work.cancel()
+        return null
     }
 
     private fun loadTopic(topic: ExploreTopic) {
@@ -164,6 +256,7 @@ class ExploreViewModel(
      */
     private fun loadForYou() {
         searchJob?.cancel()
+        stopPrefetching() // lo de la lista anterior ya no se va a tocar
         searchJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
             val results = recommendations.forYou().fold(
@@ -173,11 +266,13 @@ class ExploreViewModel(
                 onFailure = { ExploreResults.Error(it.asMediaError()) },
             )
             _uiState.value = _uiState.value.copy(results = results)
+            prefetchFirst(results)
         }
     }
 
     private fun load(query: String) {
         searchJob?.cancel() // una búsqueda nueva deja obsoleta la anterior
+        stopPrefetching()
         searchJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
             val results = catalog.search(query).fold(
@@ -185,10 +280,17 @@ class ExploreViewModel(
                 onFailure = { ExploreResults.Error(it.asMediaError()) },
             )
             _uiState.value = _uiState.value.copy(results = results)
+            prefetchFirst(results)
         }
     }
 
     companion object {
+        /** Cuántos videos de arriba de la lista se preparan por adelantado. */
+        const val PREFETCH_COUNT = 3
+
+        /** Espera antes de empezar, para dejar cargar antes las miniaturas de la lista. */
+        const val PREFETCH_DELAY_MS = 1_500L
+
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as ExoTubeApp

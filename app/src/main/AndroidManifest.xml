@@ -114,6 +114,20 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
+
+        <!-- El widget "tocadiscos" de la pantalla de inicio. exported="true" porque quien lo
+             avisa es el sistema (al añadirlo o redibujarlo), no la propia app. -->
+        <receiver
+            android:name=".widget.NowPlayingWidget"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/now_playing_widget_info" />
+        </receiver>
     </application>
 
 </manifest>

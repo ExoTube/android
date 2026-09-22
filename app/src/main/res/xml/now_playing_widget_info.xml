@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    La ficha del widget para el selector de widgets del teléfono.
+
+    updatePeriodMillis="0": el widget no se actualiza cada X tiempo por su cuenta. Lo actualiza el
+    servicio de reproducción cuando algo cambia, que es lo único que tiene sentido para un
+    reproductor (y lo que no gasta batería de más).
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_now_playing"
+    android:minWidth="264dp"
+    android:minHeight="264dp"
+    android:minResizeWidth="264dp"
+    android:minResizeHeight="264dp"
+    android:previewImage="@drawable/widget_vinyl"
+    android:previewLayout="@layout/widget_now_playing"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="3"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen" />

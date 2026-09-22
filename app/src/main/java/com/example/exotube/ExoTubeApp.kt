@@ -9,6 +9,7 @@ import com.example.exotube.data.library.EmbeddedArtworkFetcher
 import com.example.exotube.data.update.UpdateCheckWorker
 import com.example.exotube.data.ytdlp.EngineUpdateWorker
 import com.example.exotube.di.AppContainer
+import com.example.exotube.widget.NowPlayingWidget
 import kotlinx.coroutines.launch
 
 /** Se crea antes que cualquier Activity; guarda las dependencias compartidas por toda la app. */
@@ -27,6 +28,8 @@ class ExoTubeApp : Application(), SingletonImageLoader.Factory {
         EngineUpdateWorker.schedule(this)
         // Y una vez al día también, si hay una versión nueva de la propia app.
         UpdateCheckWorker.schedule(this)
+        // Con la app recién arrancada no suena nada todavía: que el widget no diga lo contrario.
+        NowPlayingWidget.resetToIdle(this)
     }
 
     /**

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El brazo levantado y apartado del disco: en pausa. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="54dp"
+    android:height="84dp"
+    android:viewportWidth="72"
+    android:viewportHeight="112">
+    <!-- Hay sitio a la izquierda para que el brazo pueda girar hacia el disco sin cortarse. -->
+    <group
+        android:pivotX="56"
+        android:pivotY="14"
+        android:rotation="-6">
+        <path
+            android:strokeColor="#FFD9D9D9"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="3.5"
+            android:pathData="M56,14 L56,78 L44,98" />
+        <path
+            android:strokeColor="#FFBDBDBD"
+            android:strokeLineCap="round"
+            android:strokeWidth="9"
+            android:pathData="M45,97 L40,106" />
+    </group>
+    <path android:fillColor="#FF2A2A2A" android:pathData="M44,14 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0" />
+    <path android:fillColor="#FFE0E0E0" android:pathData="M51,14 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>
