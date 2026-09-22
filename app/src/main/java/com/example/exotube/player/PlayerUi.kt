@@ -272,7 +272,13 @@ private fun NowPlayingContent(
             )
         }
         Spacer(Modifier.height(16.dp))
-        SeekBar(player)
+        // La onda solo tiene sentido con la musica: en un video lo que importa es la imagen, y
+        // ademas de un video en linea no hay archivo que leer.
+        if (isVideo) {
+            SeekBar(player)
+        } else {
+            WaveformSeekBar(player, current.mediaItem?.mediaId)
+        }
         Spacer(Modifier.height(8.dp))
         PlaybackControls(player, playPause, repeatPlan, onCycleRepeat)
         Spacer(Modifier.height(32.dp))
@@ -390,7 +396,7 @@ internal fun SeekBar(player: Player) {
 }
 
 @Composable
-private fun TimeLabel(millis: Long) {
+internal fun TimeLabel(millis: Long) {
     Text(
         text = formatDuration(millis / 1000),
         style = MaterialTheme.typography.labelMedium,

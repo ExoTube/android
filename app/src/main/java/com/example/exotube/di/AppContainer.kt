@@ -6,6 +6,7 @@ import com.example.exotube.data.history.DisabledHistoryRepository
 import com.example.exotube.data.history.SupabaseHistoryRepository
 import com.example.exotube.data.audio.FFmpegAudioEditor
 import com.example.exotube.data.audio.FFmpegRunner
+import com.example.exotube.data.audio.WaveformReader
 import com.example.exotube.data.library.ArtworkCache
 import com.example.exotube.data.library.MediaStoreLibraryRepository
 import com.example.exotube.data.playlist.ExoTubeDatabase
@@ -64,6 +65,9 @@ class AppContainer(context: Context) {
     val audioEffects: AudioEffects by lazy { AudioEffects(appContext) }
 
     val libraryRepository: LibraryRepository by lazy { MediaStoreLibraryRepository(appContext) }
+
+    /** Calcula la forma de onda que dibuja la barra del reproductor. Guarda las últimas. */
+    val waveformReader: WaveformReader by lazy { WaveformReader(appContext) }
 
     /** Para olvidar la carátula guardada cuando se cambia la portada de una canción. */
     val artworkCache: ArtworkCache by lazy { ArtworkCache(appContext) }
