@@ -239,7 +239,7 @@
     <string name="whats_new_title">Novedades de la %1$s</string>
     <string name="whats_new_subtitle">Esto es lo que se ha añadido</string>
     <string name="whats_new_continue">Empezar</string>
-    <string name="whats_new_notes">VIDEOS\n• Elige la calidad: Automática (rápida con datos, nítida con wifi), 1080p, 720p, 480p, 360p o 144p.\n• Los videos en línea empiezan antes: los primeros de la lista se preparan mientras miras.\n• Si un video falla, ExoTube pide otro enlace sola. Ya no hace falta tocarlo una y otra vez.\n\nTU MÚSICA\n• Para ti: recomendaciones a partir de lo que escuchas, sin cuenta y sin salir del teléfono.\n• La barra del reproductor es la onda de la canción: toca donde quieras saltar.\n• Elimina canciones y videos descargados desde su menú.\n\nPANTALLA DE INICIO\n• Widget tocadiscos: el disco gira mientras suena, con pausa y cambio de canción.</string>
+    <string name="whats_new_notes">VIDEOS EN LÍNEA\n• Empiezan mucho antes: el video llega en 1 o 2 segundos, antes tardaba de 4 a 7.\n• Ya no se paran a mitad ni hace falta adelantarlos para que sigan.\n• Búsquedas unas 5 veces más rápidas y sin límite: al bajar salen más resultados.\n• Toca el nombre del canal para ver su página con todos sus videos.\n\nWIDGET\n• Ahora ocupa 3x3 casillas. Si ya lo tenías puesto, quítalo y vuelve a añadirlo.</string>
 
 
     <!-- Widget del tocadiscos en la pantalla de inicio -->
