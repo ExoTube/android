@@ -100,6 +100,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        // NewPipeExtractor usa partes de Java (java.nio.file) que Android solo trae desde la 13:
+        // el "desugaring" las incluye en la app para los teléfonos más viejos.
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures {
         compose = true
@@ -131,6 +134,9 @@ dependencies {
     // --- Motor de extracción: yt-dlp + FFmpeg (unir video/audio, convertir a MP3) ---
     implementation(libs.youtubedl.android.library)
     implementation(libs.youtubedl.android.ffmpeg)
+    // Pide los enlaces de los videos de YouTube desde dentro de la app, sin arrancar Python.
+    implementation(libs.newpipe.extractor)
+    coreLibraryDesugaring(libs.desugar.jdk.libs.nio)
 
     // --- Backend: Supabase (Postgrest + Auth anónima) sobre Ktor ---
     implementation(platform(libs.supabase.bom))

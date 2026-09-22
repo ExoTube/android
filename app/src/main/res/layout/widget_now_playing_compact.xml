@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Versión COMPACTA del widget "tocadiscos", para cuando el hueco es pequeño (3x3 casillas en
+    muchos teléfonos). Mismas vistas y mismos ids que la normal, en menos espacio: disco más
+    pequeño, textos algo menores y sin la línea de tiempos. La app elige una u otra según el
+    tamaño del hueco (ver WidgetLayouts).
+
+    El widget "tocadiscos". Solo usa vistas que Android deja poner en un widget (FrameLayout,
+    LinearLayout, ImageView, TextView, ProgressBar): el widget no lo dibuja la app, lo dibuja el
+    lanzador a partir de esta plantilla.
+
+    El disco existe dos veces: quieto (ImageView) y girando (ProgressBar con el vinilo). La app
+    enseña uno u otro según esté sonando o no.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!--
+        La tarjeta es un cuadrado de tamaño fijo, centrado en el hueco que dé el lanzador. Las
+        casillas de la pantalla de inicio casi nunca son cuadradas (suelen ser más altas que
+        anchas), así que si la tarjeta llenara el hueco saldría un rectángulo.
+    -->
+    <FrameLayout
+        android:id="@android:id/background"
+        android:layout_width="@dimen/widget_card_size_compact"
+        android:layout_height="@dimen/widget_card_size_compact"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_background"
+        android:clipToOutline="true">
+
+        <!-- La portada desenfocada de fondo; la pone la app (solo en Android 12+). -->
+        <ImageView
+            android:id="@+id/widget_backdrop"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="centerCrop" />
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:importantForAccessibility="no"
+            android:scaleType="fitXY"
+            android:src="@drawable/widget_scrim" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="14dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp">
+
+            <!-- El tocadiscos: el disco y, a su derecha, el brazo. -->
+            <FrameLayout
+                android:id="@+id/widget_turntable"
+                android:layout_width="112dp"
+                android:layout_height="80dp">
+
+                <FrameLayout
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_gravity="start|center_vertical">
+
+                    <ImageView
+                        android:id="@+id/widget_disc_still"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/widget_vinyl" />
+
+                    <ProgressBar
+                        android:id="@+id/widget_disc_spinning"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:indeterminate="true"
+                        android:indeterminateBehavior="repeat"
+                        android:indeterminateDrawable="@drawable/widget_vinyl_spinning"
+                        android:indeterminateDuration="2400"
+                        android:indeterminateOnly="true"
+                        android:interpolator="@android:anim/linear_interpolator"
+                        android:visibility="gone" />
+
+                    <!-- La portada, recortada en círculo por la app, en el centro del disco. -->
+                    <ImageView
+                        android:id="@+id/widget_cover"
+                        android:layout_width="36dp"
+                        android:layout_height="36dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no" />
+                </FrameLayout>
+
+                <ImageView
+                    android:id="@+id/widget_tonearm"
+                    android:layout_width="38dp"
+                    android:layout_height="60dp"
+                    android:layout_gravity="end|top"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/widget_tonearm_off" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/widget_idle_title"
+                android:textColor="#FFFFFFFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/widget_idle_subtitle"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp" />
+
+            <ProgressBar
+                android:id="@+id/widget_progress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_marginTop="6dp"
+                android:max="1000"
+                android:progress="0"
+                android:progressDrawable="@drawable/widget_progress" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/widget_position"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/widget_zero_time"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/widget_duration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/widget_zero_time"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/widget_previous"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/widget_previous"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_skip_previous"
+                    android:tint="#FFFFFFFF" />
+
+                <ImageView
+                    android:id="@+id/widget_play_pause"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:background="@drawable/widget_play_button"
+                    android:contentDescription="@string/widget_play"
+                    android:padding="10dp"
+                    android:src="@drawable/ic_play"
+                    android:tint="#FF00210D" />
+
+                <ImageView
+                    android:id="@+id/widget_next"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/widget_next"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_skip_next"
+                    android:tint="#FFFFFFFF" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

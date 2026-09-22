@@ -24,6 +24,9 @@ internal data class YtDlpEntryDto(
     val channel: String? = null,
     val uploader: String? = null,
     @SerialName("view_count") val viewCount: Long? = null,
+    /** El canal, para poder abrirlo desde la fila. */
+    @SerialName("channel_url") val channelUrl: String? = null,
+    @SerialName("uploader_url") val uploaderUrl: String? = null,
     val thumbnails: List<YtDlpThumbnailDto> = emptyList(),
     /** Algunas respuestas traen una sola miniatura suelta en vez de la lista. */
     val thumbnail: String? = null,
@@ -57,6 +60,7 @@ internal object OnlineVideoMapper {
             durationSeconds = entry.duration?.toLong()?.takeIf { it > 0 },
             thumbnailUrl = entry.bestThumbnail(),
             viewCount = entry.viewCount?.takeIf { it > 0 },
+            channelUrl = (entry.channelUrl ?: entry.uploaderUrl)?.takeIf { it.startsWith("http") },
         )
     }
 

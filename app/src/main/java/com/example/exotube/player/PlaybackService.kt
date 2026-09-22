@@ -59,7 +59,9 @@ class PlaybackService : MediaSessionService() {
         val player = ExoPlayer.Builder(this)
             // Sabe leer archivos del teléfono y, además, juntar la imagen y el sonido de un
             // video en línea que venga en dos direcciones distintas.
-            .setMediaSourceFactory(StreamingMediaSourceFactory(this))
+            .setMediaSourceFactory(
+                StreamingMediaSourceFactory(this, (application as ExoTubeApp).container.streamHttpClient),
+            )
             .setLoadControl(quickStartLoadControl())
             .setAudioAttributes(
                 AudioAttributes.Builder()

@@ -3,6 +3,7 @@ package com.example.exotube.explore
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.Recommendation
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.domain.model.VideoPage
 import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.domain.repository.RecommendationRepository
 import kotlinx.coroutines.CancellationException
@@ -59,7 +60,9 @@ class ExplorePrefetchTest {
         val finished = mutableListOf<String>()
         val cancelled = mutableListOf<String>()
 
-        override suspend fun search(query: String) = Result.success(videos)
+        override suspend fun search(query: String) = Result.success(VideoPage(videos, hasMore = false))
+
+        override suspend fun searchMore(query: String) = Result.success(VideoPage(emptyList(), hasMore = false))
 
         override suspend fun resolveStream(
             video: OnlineVideo,

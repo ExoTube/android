@@ -48,7 +48,14 @@ enum class ExploreTopic(val query: String, @StringRes val labelRes: Int) {
 /** Lo que se está mostrando en la zona de resultados. */
 sealed interface ExploreResults {
     data object Loading : ExploreResults
-    data class Ready(val videos: List<OnlineVideo>) : ExploreResults
+    data class Ready(
+        val videos: List<OnlineVideo>,
+        /** Si YouTube tiene más resultados: al llegar al final se piden solos. */
+        val hasMore: Boolean = false,
+        val isLoadingMore: Boolean = false,
+        /** Falló la última tanda: se enseña "Reintentar" y no se vuelve a pedir sola. */
+        val loadMoreFailed: Boolean = false,
+    ) : ExploreResults
     data class Error(val error: MediaError) : ExploreResults
 
     /** "Para ti": bloques con el motivo de cada uno ("Porque escuchaste …"). */
@@ -94,6 +101,12 @@ class ExploreViewModel(
 
     private var searchJob: Job? = null
     private var resolveJob: Job? = null
+
+    /** Traer la siguiente tanda de resultados. */
+    private var moreJob: Job? = null
+
+    /** El texto de la búsqueda que se está viendo, para pedir su siguiente página. */
+    private var loadedQuery: String? = null
 
     /** El recorrido que va preparando los primeros videos de la lista, uno tras otro. */
     private var prefetchJob: Job? = null
@@ -244,6 +257,46 @@ class ExploreViewModel(
         return null
     }
 
+    /**
+     * La lista llegó al final: se pide la siguiente tanda de resultados y se añade debajo.
+     *
+     * Si la última tanda falló, no se vuelve a pedir sola cada vez que se mueve la lista (sería
+     * un bucle de errores): espera a que el usuario toque "Reintentar" ([userAsked]).
+     */
+    fun onLoadMore(userAsked: Boolean = false) {
+        val ready = _uiState.value.results as? ExploreResults.Ready ?: return
+        val query = loadedQuery ?: return
+        if (!ready.hasMore || ready.isLoadingMore || searchJob?.isActive == true) return
+        if (ready.loadMoreFailed && !userAsked) return
+
+        // Se marca ya, antes de lanzar nada: si llega otro aviso de "final de la lista" en el
+        // mismo instante, tiene que ver que ya se está cargando y no pedir la misma página.
+        updateReady { it.copy(isLoadingMore = true, loadMoreFailed = false) }
+        moreJob = viewModelScope.launch {
+            val result = catalog.searchMore(query)
+            if (loadedQuery != query) return@launch // mientras tanto se buscó otra cosa
+            result.fold(
+                onSuccess = { page ->
+                    updateReady { current ->
+                        val videos = (current.videos + page.videos).distinctBy(OnlineVideo::id)
+                        current.copy(
+                            videos = videos,
+                            // Una tanda sin nada nuevo también es el final: evita pedir sin fin.
+                            hasMore = page.hasMore && videos.size > current.videos.size,
+                            isLoadingMore = false,
+                        )
+                    }
+                },
+                onFailure = { updateReady { it.copy(isLoadingMore = false, loadMoreFailed = true) } },
+            )
+        }
+    }
+
+    private fun updateReady(change: (ExploreResults.Ready) -> ExploreResults.Ready) {
+        val ready = _uiState.value.results as? ExploreResults.Ready ?: return
+        _uiState.value = _uiState.value.copy(results = change(ready))
+    }
+
     private fun loadTopic(topic: ExploreTopic) {
         if (topic == ExploreTopic.FOR_YOU) loadForYou() else load(topic.query)
     }
@@ -256,6 +309,8 @@ class ExploreViewModel(
      */
     private fun loadForYou() {
         searchJob?.cancel()
+        moreJob?.cancel()
+        loadedQuery = null // "Para ti" no se pagina
         stopPrefetching() // lo de la lista anterior ya no se va a tocar
         searchJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
@@ -272,11 +327,14 @@ class ExploreViewModel(
 
     private fun load(query: String) {
         searchJob?.cancel() // una búsqueda nueva deja obsoleta la anterior
+        moreJob?.cancel()
+        loadedQuery = query
         stopPrefetching()
         searchJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
             val results = catalog.search(query).fold(
-                onSuccess = { ExploreResults.Ready(it) },
+                // distinctBy: YouTube a veces repite un video, y la lista no admite dos iguales.
+                onSuccess = { ExploreResults.Ready(it.videos.distinctBy(OnlineVideo::id), hasMore = it.hasMore) },
                 onFailure = { ExploreResults.Error(it.asMediaError()) },
             )
             _uiState.value = _uiState.value.copy(results = results)

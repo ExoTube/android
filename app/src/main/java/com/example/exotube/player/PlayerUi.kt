@@ -6,6 +6,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +65,7 @@ import androidx.media3.ui.compose.state.rememberProgressStateWithTickInterval
 import androidx.media3.ui.compose.state.rememberShuffleButtonState
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaType
+import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.VideoQuality
 import com.example.exotube.ui.components.MediaArtwork
 import com.example.exotube.ui.components.PlayingBars
@@ -160,6 +162,8 @@ fun NowPlayingScreen(
     online: OnlinePlayback?,
     onChangeQuality: (VideoQuality) -> Unit,
     modifier: Modifier = Modifier,
+    /** Abrir el canal del video en línea que suena; null si no aplica. */
+    onOpenChannel: ((OnlineVideo) -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -176,6 +180,7 @@ fun NowPlayingScreen(
             onCollapse = onCollapse,
             online = online,
             onChangeQuality = onChangeQuality,
+            onOpenChannel = onOpenChannel,
         )
     }
 }
@@ -204,6 +209,7 @@ private fun NowPlayingContent(
     onCollapse: () -> Unit,
     online: OnlinePlayback?,
     onChangeQuality: (VideoQuality) -> Unit,
+    onOpenChannel: ((OnlineVideo) -> Unit)?,
 ) {
     val colors = MaterialTheme.colorScheme
     val current = rememberCurrentMediaItemState(player)
@@ -289,13 +295,23 @@ private fun NowPlayingContent(
             modifier = Modifier.fillMaxWidth(),
         )
         metadata.artist?.let {
+            // Con un video en línea, el canal se puede tocar: lleva a su página, con sus videos.
+            val openChannel = onlineNow?.let { playing -> onOpenChannel?.let { { it(playing.video) } } }
             Text(
                 text = it.toString(),
                 style = MaterialTheme.typography.bodyLarge,
-                color = colors.onSurfaceVariant,
+                color = if (openChannel != null) colors.primary else colors.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (openChannel != null) {
+                            Modifier.clickable(onClickLabel = stringResource(R.string.channel_open), onClick = openChannel)
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
         }
         Spacer(Modifier.height(16.dp))

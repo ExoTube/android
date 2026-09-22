@@ -3,6 +3,7 @@ package com.example.exotube.domain.repository
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.domain.model.VideoPage
 
 /**
  * Catálogo de videos que todavía están en internet: buscarlos y obtener la dirección para verlos
@@ -13,12 +14,18 @@ import com.example.exotube.domain.model.StreamSource
 interface OnlineCatalogRepository {
 
     /**
-     * Busca videos por texto.
+     * Busca videos por texto: la primera página de resultados.
      *
      * @return [Result.success] con los resultados (puede venir vacío si no hay ninguno)
      *   o [Result.failure] con un [MediaError].
      */
-    suspend fun search(query: String): Result<List<OnlineVideo>>
+    suspend fun search(query: String): Result<VideoPage>
+
+    /**
+     * La página siguiente de [query]. Solo tiene sentido justo después de [search] con ese mismo
+     * texto; si no, devuelve una página vacía sin más.
+     */
+    suspend fun searchMore(query: String): Result<VideoPage>
 
     /**
      * Pide la dirección directa para reproducir [video] sin descargarlo.

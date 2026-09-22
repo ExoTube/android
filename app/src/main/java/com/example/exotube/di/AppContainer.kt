@@ -11,6 +11,10 @@ import com.example.exotube.data.library.ArtworkCache
 import com.example.exotube.data.library.MediaStoreDeleter
 import com.example.exotube.data.library.MediaStoreLibraryRepository
 import com.example.exotube.data.network.ConnectionInfo
+import com.example.exotube.data.network.StreamHttpClient
+import com.example.exotube.data.newpipe.NewPipeChannels
+import com.example.exotube.data.newpipe.NewPipeSearch
+import com.example.exotube.data.newpipe.NewPipeStreamResolver
 import com.example.exotube.data.playlist.ExoTubeDatabase
 import com.example.exotube.data.playlist.PlaylistCoverStore
 import com.example.exotube.data.playlist.RoomPlaylistRepository
@@ -22,6 +26,7 @@ import com.example.exotube.data.ytdlp.YtDlpCatalog
 import com.example.exotube.data.ytdlp.YtDlpEngine
 import com.example.exotube.data.ytdlp.YtDlpRecommendations
 import com.example.exotube.domain.repository.AudioEditor
+import com.example.exotube.domain.repository.ChannelRepository
 import com.example.exotube.domain.repository.DownloadHistoryRepository
 import com.example.exotube.domain.repository.DownloadScheduler
 import com.example.exotube.domain.repository.LibraryRepository
@@ -38,6 +43,7 @@ import com.example.exotube.download.WorkManagerDownloadScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import okhttp3.OkHttpClient
 
 /**
  * Inyección de dependencias manual: el único lugar donde se eligen las implementaciones.
@@ -60,7 +66,23 @@ class AppContainer(context: Context) {
 
     val mediaDownloader: MediaDownloader get() = mediaExtractor
 
-    val onlineCatalog: OnlineCatalogRepository by lazy { YtDlpCatalog(ytDlpEngine) }
+    /**
+     * La conexión de los videos en línea, compartida por quien pide el enlace (NewPipe) y quien
+     * lo descarga (el reproductor): YouTube exige que sean "el mismo".
+     */
+    val streamHttpClient: OkHttpClient by lazy { StreamHttpClient.create() }
+
+    /** Búsquedas y enlaces con NewPipe (rápido) y yt-dlp de respaldo; las descargas, con yt-dlp. */
+    val onlineCatalog: OnlineCatalogRepository by lazy {
+        YtDlpCatalog(
+            engine = ytDlpEngine,
+            quickResolver = NewPipeStreamResolver(streamHttpClient),
+            quickSearch = NewPipeSearch(streamHttpClient),
+        )
+    }
+
+    /** Los canales de YouTube: su cabecera y sus videos, por páginas. */
+    val channels: ChannelRepository by lazy { NewPipeChannels(streamHttpClient) }
 
     /** Wifi o datos: la calidad automática de los videos en línea depende de ello. */
     val connection: ConnectionInfo by lazy { ConnectionInfo(appContext) }

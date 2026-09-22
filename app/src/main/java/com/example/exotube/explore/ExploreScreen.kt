@@ -1,6 +1,5 @@
 package com.example.exotube.explore
 
-import android.content.Intent
 import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -16,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,7 +46,10 @@ import com.example.exotube.R
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.ui.components.LoadMoreFooter
+import com.example.exotube.ui.components.LoadMoreWhenNearEnd
 import com.example.exotube.ui.components.OnlineVideoRow
+import com.example.exotube.ui.components.shareToSelf
 import com.example.exotube.ui.components.SearchField
 import com.example.exotube.ui.messageRes
 import com.example.exotube.ui.theme.ExoTubeTheme
@@ -58,6 +61,7 @@ import com.example.exotube.ui.theme.ExoTubeTheme
 @Composable
 fun ExploreRoute(
     onPlayOnline: (OnlineVideo, StreamSource, audioOnly: Boolean) -> Unit,
+    onOpenChannel: (OnlineVideo) -> Unit,
     onGoToLibrary: () -> Unit,
     contentPadding: PaddingValues,
     viewModel: ExploreViewModel = viewModel(factory = ExploreViewModel.Factory),
@@ -85,20 +89,12 @@ fun ExploreRoute(
         onVideoSelected = viewModel::onVideoSelected,
         onDownload = { context.startActivity(shareToSelf(it)) },
         onRetry = viewModel::onRetry,
+        onLoadMore = { viewModel.onLoadMore() },
+        onRetryMore = { viewModel.onLoadMore(userAsked = true) },
+        onOpenChannel = onOpenChannel,
         onGoToLibrary = onGoToLibrary,
         contentPadding = contentPadding,
     )
-}
-
-/**
- * Para descargar reutilizamos tal cual el flujo de "Compartir": le mandamos el enlace a nuestra
- * propia ShareActivity, igual que haría YouTube. Así la hoja de calidades, los permisos y la
- * descarga en segundo plano son EXACTAMENTE el mismo código, sin duplicar nada.
- */
-private fun shareToSelf(video: OnlineVideo) = Intent(Intent.ACTION_SEND).apply {
-    setPackage("com.example.exotube")
-    type = "text/plain"
-    putExtra(Intent.EXTRA_TEXT, video.url)
 }
 
 /** Pantalla "tonta": solo dibuja el estado que recibe. */
@@ -115,8 +111,16 @@ fun ExploreScreen(
     onGoToLibrary: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    /** Se llega al final de la lista: hay que traer más resultados. */
+    onLoadMore: () -> Unit = {},
+    onRetryMore: () -> Unit = {},
+    onOpenChannel: (OnlineVideo) -> Unit = {},
 ) {
-    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxWidth()) {
+    val listState = rememberLazyListState()
+    val ready = state.results as? ExploreResults.Ready
+    LoadMoreWhenNearEnd(listState, itemCount = ready?.videos?.size ?: 0) { if (ready != null) onLoadMore() }
+
+    LazyColumn(state = listState, contentPadding = contentPadding, modifier = modifier.fillMaxWidth()) {
         item { ExploreHeader() }
         item {
             SearchField(
@@ -160,6 +164,7 @@ fun ExploreScreen(
                         isResolving = video.id == state.resolvingId,
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
+                        onOpenChannel = { onOpenChannel(video) },
                     )
                 }
             }
@@ -177,7 +182,11 @@ fun ExploreScreen(
                         isResolving = video.id == state.resolvingId,
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
+                        onOpenChannel = { onOpenChannel(video) },
                     )
+                }
+                item(key = "mas-resultados") {
+                    LoadMoreFooter(results.isLoadingMore, results.loadMoreFailed, onRetry = onRetryMore)
                 }
             }
         }

@@ -15,7 +15,29 @@ data class OnlineVideo(
     val durationSeconds: Long?,
     val thumbnailUrl: String?,
     val viewCount: Long?,
+    /**
+     * Enlace al canal que lo publicó, para poder abrirlo. null si la búsqueda no lo trajo: en
+     * ese caso se averigua a partir del propio video al tocar el canal.
+     */
+    val channelUrl: String? = null,
 )
+
+/** Un canal de YouTube: lo que se ve arriba de su página. */
+data class OnlineChannel(
+    val url: String,
+    val name: String,
+    val avatarUrl: String?,
+    val bannerUrl: String?,
+    /** null si el canal oculta cuántos suscriptores tiene. */
+    val subscriberCount: Long?,
+    val isVerified: Boolean,
+)
+
+/**
+ * Una página de videos: resultados de una búsqueda o los videos de un canal. [hasMore] dice si
+ * merece la pena pedir la siguiente: así la lista sabe si tiene que seguir cargando al final.
+ */
+data class VideoPage(val videos: List<OnlineVideo>, val hasMore: Boolean)
 
 /**
  * Direcciones con las que reproducir algo que sigue en internet.

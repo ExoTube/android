@@ -252,4 +252,14 @@
     <string name="widget_pause">Pausar</string>
     <string name="widget_previous">Anterior</string>
     <string name="widget_next">Siguiente</string>
+
+    <!-- Explorar: mas resultados al llegar al final -->
+    <string name="explore_more_failed">No se pudieron cargar más videos.</string>
+
+    <!-- Canal de un autor de YouTube -->
+    <string name="channel_open">Abrir el canal</string>
+    <string name="channel_subscribers">%1$s suscriptores</string>
+    <string name="channel_verified">Canal verificado</string>
+    <string name="channel_videos">Videos</string>
+    <string name="channel_empty">Este canal todavía no tiene videos.</string>
 </resources>

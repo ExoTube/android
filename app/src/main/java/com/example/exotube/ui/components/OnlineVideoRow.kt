@@ -39,6 +39,9 @@ import com.example.exotube.ui.formatDuration
  *
  * Mientras [isResolving] es true se tapa la miniatura con un indicador: resolver la dirección del
  * video tarda unos segundos y hay que avisar de que algo está pasando.
+ *
+ * Con [onOpenChannel], el nombre del canal sale en verde y al tocarlo se abre el canal. Es un
+ * toque aparte del de la fila: tocar el resto sigue reproduciendo el video.
  */
 @Composable
 fun OnlineVideoRow(
@@ -47,6 +50,8 @@ fun OnlineVideoRow(
     onClick: () -> Unit,
     onDownload: () -> Unit,
     modifier: Modifier = Modifier,
+    /** null donde no tiene sentido (por ejemplo, dentro del propio canal). */
+    onOpenChannel: (() -> Unit)? = null,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -64,14 +69,18 @@ fun OnlineVideoRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            video.subtitle()?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (onOpenChannel != null && video.channel != null) {
+                ChannelLink(video, onOpenChannel)
+            } else {
+                video.subtitle()?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
         IconButton(onClick = onDownload) {
@@ -123,6 +132,37 @@ private fun Thumbnail(video: OnlineVideo, isResolving: Boolean, modifier: Modifi
             ) {
                 CircularProgressIndicator(color = colors.primary, modifier = Modifier.size(28.dp))
             }
+        }
+    }
+}
+
+/**
+ * "Canal · 1,2 M de vistas" con el canal tocable. El canal se encoge (con puntos suspensivos) si
+ * no cabe, pero las vistas se ven siempre. El relleno vertical agranda la zona del dedo, que con
+ * una sola línea de texto pequeño sería difícil de acertar.
+ */
+@Composable
+private fun ChannelLink(video: OnlineVideo, onOpenChannel: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = video.channel.orEmpty(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .clip(RoundedCornerShape(4.dp))
+                .clickable(onClickLabel = stringResource(R.string.channel_open), onClick = onOpenChannel)
+                .padding(vertical = 6.dp),
+        )
+        video.viewCount?.let {
+            Text(
+                text = " · " + stringResource(R.string.explore_views, formatCompactCount(it)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
         }
     }
 }

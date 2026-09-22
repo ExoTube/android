@@ -18,6 +18,8 @@ ksp = "2.3.12"
 navigation = "2.10.1"
 # Motor yt-dlp para Android (Python + yt-dlp + FFmpeg precompilados).
 youtubedlAndroid = "0.18.1"
+newpipeExtractor = "v0.26.5"
+desugarJdkLibs = "2.1.5"
 supabase = "3.8.0"
 # Debe coincidir con la versión de Ktor que usa internamente supabase-kt 3.8.0.
 ktor = "3.5.1"
@@ -55,6 +57,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # --- yt-dlp ---
 youtubedl-android-library = { group = "io.github.junkfood02.youtubedl-android", name = "library", version.ref = "youtubedlAndroid" }
 youtubedl-android-ffmpeg = { group = "io.github.junkfood02.youtubedl-android", name = "ffmpeg", version.ref = "youtubedlAndroid" }
+newpipe-extractor = { group = "com.github.teamnewpipe", name = "NewPipeExtractor", version.ref = "newpipeExtractor" }
+desugar-jdk-libs-nio = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugarJdkLibs" }
 
 # --- Supabase + Ktor ---
 supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }

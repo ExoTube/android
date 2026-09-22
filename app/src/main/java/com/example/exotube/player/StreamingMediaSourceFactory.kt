@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import com.example.exotube.data.network.StreamHttpClient
 import okhttp3.OkHttpClient
 
 /**
@@ -24,15 +25,20 @@ import okhttp3.OkHttpClient
  * ([MergingMediaSource]), que los reproduce a la vez y sincronizados. Es lo que permite ver en
  * 1080p, porque YouTube solo sirve 360p cuando mete imagen y sonido en el mismo archivo.
  *
- * Lo que viene de internet se descarga con OkHttp y [Ipv4FirstDns], para salir por la misma IP
- * con la que yt-dlp pidió la dirección: si no, YouTube la rechaza. Los archivos del teléfono
+ * Lo que viene de internet se descarga con la conexión de [StreamHttpClient], para salir por la
+ * misma IP con la que se pidió la dirección: si no, YouTube la rechaza. Los archivos del teléfono
  * (content://) no pasan por aquí; DefaultDataSource los sigue leyendo como siempre.
  */
 @OptIn(UnstableApi::class) // toda la capa de MediaSource es API "inestable" de Media3
-internal class StreamingMediaSourceFactory(context: Context) : MediaSource.Factory {
+internal class StreamingMediaSourceFactory(
+    context: Context,
+    /** La conexión de los videos en línea (ver [StreamHttpClient]). */
+    httpClient: OkHttpClient,
+) : MediaSource.Factory {
 
     private val delegate = DefaultMediaSourceFactory(
-        DefaultDataSource.Factory(context, OkHttpDataSource.Factory(httpClient())),
+        // Lo que viene de YouTube, a trozos (ver ChunkedDataSource): si no, YouTube lo frena.
+        DefaultDataSource.Factory(context, ChunkedDataSource.Factory(OkHttpDataSource.Factory(httpClient))),
     )
 
     override fun createMediaSource(mediaItem: MediaItem): MediaSource {
@@ -54,16 +60,6 @@ internal class StreamingMediaSourceFactory(context: Context) : MediaSource.Facto
             audio,
         )
     }
-
-    /**
-     * Sin "fastFallback": con él, OkHttp probaría a la vez IPv4 e IPv6 y se quedaría con la que
-     * contestara antes, que puede ser justo la que YouTube va a rechazar. Así se prueban en el
-     * orden de [Ipv4FirstDns] y la IPv6 solo entra si la IPv4 no conecta.
-     */
-    private fun httpClient(): OkHttpClient = OkHttpClient.Builder()
-        .dns(Ipv4FirstDns)
-        .fastFallback(false)
-        .build()
 
     override fun getSupportedTypes(): IntArray = delegate.supportedTypes
 

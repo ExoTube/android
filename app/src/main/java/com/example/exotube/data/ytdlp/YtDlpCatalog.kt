@@ -2,12 +2,16 @@ package com.example.exotube.data.ytdlp
 
 import android.os.SystemClock
 import android.util.Log
+import com.example.exotube.data.newpipe.NewPipeSearch
+import com.example.exotube.data.newpipe.NewPipeStreamResolver
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
+import com.example.exotube.domain.model.VideoPage
 import com.example.exotube.domain.repository.OnlineCatalogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -17,34 +21,118 @@ import kotlin.coroutines.cancellation.CancellationException
  * Aquí no se descarga NADA al teléfono: solo se piden las direcciones de los archivos que ya
  * están en el servidor y se le pasan al reproductor, como haría cualquier web de video.
  */
-class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
+class YtDlpCatalog(
+    private val engine: YtDlpEngine,
+    /** El camino rápido para los enlaces; null para usar solo yt-dlp. */
+    private val quickResolver: NewPipeStreamResolver? = null,
+    /** Búsqueda por páginas con NewPipe; null para buscar solo con yt-dlp. */
+    private val quickSearch: NewPipeSearch? = null,
+) : OnlineCatalogRepository {
+
+    /**
+     * Por dónde seguir la última búsqueda. Solo se recuerda una: la que se está mirando.
+     * Si la hizo NewPipe se guarda su "siguiente página"; si la hizo yt-dlp, cuántos van.
+     */
+    @Volatile
+    private var searchCursor: SearchCursor? = null
+
+    private sealed interface SearchCursor {
+        val query: String
+
+        class ByNewPipe(override val query: String, val next: NewPipeSearch.Next?) : SearchCursor
+
+        class ByYtDlp(override val query: String, val shown: Int) : SearchCursor
+    }
 
     private val cache = StreamUrlCache()
 
-    override suspend fun search(query: String): Result<List<OnlineVideo>> = try {
-        // "ytsearchN:texto" es una URL falsa que entiende yt-dlp: busca y devuelve N resultados.
-        val request = engine.newRequest("ytsearch$RESULTS_PER_SEARCH:$query")
+    /**
+     * Videos cuyo enlace rápido (NewPipe) acabó fallando al reproducirse. Para esos, la próxima
+     * vez se va directo a yt-dlp, que es más lento pero más a prueba de cambios de YouTube.
+     */
+    private val quickFailed = mutableSetOf<String>()
+
+    /**
+     * Primero con NewPipe (más rápido y por páginas); si falla, con yt-dlp como siempre.
+     */
+    override suspend fun search(query: String): Result<VideoPage> {
+        quickSearch?.let { newPipe ->
+            try {
+                val startMs = SystemClock.elapsedRealtime()
+                val results = newPipe.first(query)
+                Log.d(TAG, "Búsqueda con NewPipe en ${SystemClock.elapsedRealtime() - startMs} ms")
+                searchCursor = SearchCursor.ByNewPipe(query, results.next)
+                return Result.success(VideoPage(results.videos, hasMore = results.next != null))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "NewPipe no pudo buscar; se prueba con yt-dlp", e)
+            }
+        }
+        return try {
+            val startMs = SystemClock.elapsedRealtime()
+            val videos = ytDlpSearch(query, RESULTS_PER_SEARCH)
+            Log.d(TAG, "Búsqueda con yt-dlp en ${SystemClock.elapsedRealtime() - startMs} ms")
+            searchCursor = SearchCursor.ByYtDlp(query, videos.size)
+            Result.success(VideoPage(videos, hasMore = videos.size >= RESULTS_PER_SEARCH))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Falló la búsqueda en línea", e)
+            Result.failure(YtDlpErrorMapper.map(e))
+        }
+    }
+
+    override suspend fun searchMore(query: String): Result<VideoPage> {
+        val cursor = searchCursor?.takeIf { it.query == query } ?: return Result.success(NO_MORE)
+        return try {
+            when (cursor) {
+                is SearchCursor.ByNewPipe -> {
+                    val next = cursor.next ?: return Result.success(NO_MORE)
+                    val results = checkNotNull(quickSearch).more(next)
+                    searchCursor = SearchCursor.ByNewPipe(query, results.next)
+                    Result.success(VideoPage(results.videos, hasMore = results.next != null))
+                }
+                // yt-dlp no sabe "seguir": se repite la búsqueda pidiendo más y se quitan los
+                // que ya se veían. Más lento, pero es solo el plan B.
+                is SearchCursor.ByYtDlp -> {
+                    val wanted = cursor.shown + RESULTS_PER_SEARCH
+                    val all = ytDlpSearch(query, wanted)
+                    val fresh = all.drop(cursor.shown)
+                    searchCursor = SearchCursor.ByYtDlp(query, all.size)
+                    Result.success(VideoPage(fresh, hasMore = fresh.isNotEmpty() && all.size >= wanted))
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "No se pudieron traer más resultados", e)
+            Result.failure(YtDlpErrorMapper.map(e))
+        }
+    }
+
+    /** "ytsearchN:texto" es una URL falsa que entiende yt-dlp: busca y devuelve N resultados. */
+    private suspend fun ytDlpSearch(query: String, count: Int): List<OnlineVideo> {
+        val request = engine.newRequest("ytsearch$count:$query")
             .addOption("--dump-single-json")
             // Sin esto, yt-dlp analizaría cada resultado uno a uno: minutos en vez de segundos.
             .addOption("--flat-playlist")
             .addOption("--no-warnings")
         val json = engine.run(request).out
-        val videos = withContext(Dispatchers.Default) {
+        return withContext(Dispatchers.Default) {
             OnlineVideoMapper.toOnlineVideos(YtDlpJson.decodeFromString<YtDlpSearchDto>(json))
         }
-        Result.success(videos)
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        Log.w(TAG, "Falló la búsqueda en línea", e)
-        Result.failure(YtDlpErrorMapper.map(e))
     }
 
     /**
      * Pide las direcciones con las que reproducir [video].
      *
-     * Si ya se resolvió hace poco, se devuelve lo guardado y no se arranca yt-dlp: eso convierte
+     * Si ya se resolvió hace poco, se devuelve lo guardado y no se pregunta a nadie: eso convierte
      * los segundos de espera en cero al volver a una canción.
+     *
+     * Si no, primero se intenta con NewPipe ([quickResolver]) y, si falla, con yt-dlp. Medido en
+     * el emulador con seis videos: NewPipe tardó 1,9 s de mediana y yt-dlp 6 s (y a veces 19),
+     * con exactamente los mismos formatos.
      */
     override suspend fun resolveStream(
         video: OnlineVideo,
@@ -58,13 +146,18 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
             return Result.success(it)
         }
 
+        quickResolve(video, audioOnly, maxHeight)?.let { source ->
+            cache.put(key, source)
+            return Result.success(source)
+        }
+
         return try {
             val startMs = SystemClock.elapsedRealtime()
             val urls = directUrls(video.url, if (audioOnly) AUDIO_ONLY_FORMAT else videoFormat(maxHeight))
             val source = toStreamSource(urls, audioOnly)
                 ?: return Result.failure(MediaError.NoMediaFound)
             cache.put(key, source)
-            Log.d(TAG, "Resuelto ${video.id} en ${SystemClock.elapsedRealtime() - startMs} ms")
+            Log.d(TAG, "Resuelto ${video.id} con yt-dlp en ${SystemClock.elapsedRealtime() - startMs} ms")
             Result.success(source)
         } catch (e: CancellationException) {
             throw e
@@ -74,8 +167,32 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
         }
     }
 
+    /**
+     * El enlace de [video] no se pudo reproducir: se olvida y, si era de NewPipe, la próxima vez
+     * se pide a yt-dlp. Así un fallo de NewPipe nunca deja un video sin poder verse.
+     */
     override fun forget(video: OnlineVideo) {
         cache.removeStartingWith(cacheKeyPrefix(video))
+        synchronized(quickFailed) { quickFailed += video.id }
+    }
+
+    /**
+     * El camino rápido. Devuelve null (y entonces se usa yt-dlp) si no está disponible, si ese
+     * video ya falló por aquí o si NewPipe no lo consigue a tiempo, por la razón que sea.
+     */
+    private suspend fun quickResolve(video: OnlineVideo, audioOnly: Boolean, maxHeight: Int): StreamSource? {
+        val resolver = quickResolver ?: return null
+        if (synchronized(quickFailed) { video.id in quickFailed }) return null
+        val startMs = SystemClock.elapsedRealtime()
+        return try {
+            withTimeoutOrNull(QUICK_TIMEOUT_MS) { resolver.resolve(video.url, audioOnly, maxHeight) }
+                ?.also { Log.d(TAG, "Resuelto ${video.id} con NewPipe en ${SystemClock.elapsedRealtime() - startMs} ms") }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "NewPipe no pudo con ${video.id}; se prueba con yt-dlp", e)
+            null
+        }
     }
 
     private fun cacheKeyPrefix(video: OnlineVideo) = "${video.id}:"
@@ -89,7 +206,7 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
      * desde otra. Con datos móviles el teléfono suele tener DOS IP a la vez, una IPv4 y otra
      * IPv6: si yt-dlp pedía la dirección por una y el reproductor la descargaba por la otra,
      * NINGÚN video se podía ver, y volver a tocarlo tampoco lo arreglaba. El reproductor hace
-     * lo mismo por su lado (ver `player.Ipv4FirstDns`).
+     * lo mismo por su lado (ver `data.network.Ipv4FirstDns`).
      *
      * Si la red no tiene IPv4 en absoluto (muy raro), se vuelve a intentar sin forzarlo.
      */
@@ -120,7 +237,16 @@ class YtDlpCatalog(private val engine: YtDlpEngine) : OnlineCatalogRepository {
 
     private companion object {
         const val TAG = "YtDlpCatalog"
+
+        /**
+         * Lo que se espera a NewPipe antes de pasarle el trabajo a yt-dlp. Suele tardar menos de
+         * dos segundos; si tarda mucho más, algo va mal y no tiene sentido esperarlo.
+         */
+        const val QUICK_TIMEOUT_MS = 8_000L
+
         const val RESULTS_PER_SEARCH = 20
+
+        val NO_MORE = VideoPage(emptyList(), hasMore = false)
 
         /** Modo ahorro de datos: solo el sonido, sin caer nunca a un formato con imagen. */
         const val AUDIO_ONLY_FORMAT = "ba[protocol^=http]"

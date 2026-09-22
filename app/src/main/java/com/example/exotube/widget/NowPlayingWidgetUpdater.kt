@@ -59,7 +59,7 @@ internal class NowPlayingWidgetUpdater(
         session.player.removeListener(this)
         scope.cancel()
         if (active === this) active = null
-        if (hasWidgets()) manager.updateAppWidget(component, WidgetViews.idle(context))
+        manager.updateEach(widgetIds()) { layout -> WidgetViews.idle(context, layout) }
     }
 
     override fun onEvents(player: Player, events: Player.Events) {
@@ -68,18 +68,20 @@ internal class NowPlayingWidgetUpdater(
 
     /** Vuelve a pintar el widget entero con lo que suena ahora. */
     fun refresh() {
-        if (!hasWidgets()) {
+        val ids = widgetIds()
+        if (ids.isEmpty()) {
             stopTicking()
             return
         }
         val player = session.player
         if (player.currentMediaItem == null) {
             stopTicking()
-            manager.updateAppWidget(component, WidgetViews.idle(context))
+            manager.updateEach(ids) { layout -> WidgetViews.idle(context, layout) }
             return
         }
         prepareArtwork(player.mediaMetadata, player.currentMediaItem?.mediaId)
-        manager.updateAppWidget(component, WidgetViews.nowPlaying(context, snapshot(player), artwork))
+        val snapshot = snapshot(player)
+        manager.updateEach(ids) { layout -> WidgetViews.nowPlaying(context, layout, snapshot, artwork) }
         if (player.isPlaying) startTicking() else stopTicking()
     }
 
@@ -123,9 +125,10 @@ internal class NowPlayingWidgetUpdater(
         tickJob = scope.launch {
             while (isActive) {
                 delay(TICK_MS)
-                val ids = manager.getAppWidgetIds(component)
+                val ids = widgetIds()
                 if (ids.isEmpty()) break
-                manager.partiallyUpdateAppWidget(ids, WidgetViews.progress(context, snapshot(session.player)))
+                val snapshot = snapshot(session.player)
+                manager.partiallyUpdateEach(ids) { layout -> WidgetViews.progress(context, layout, snapshot) }
             }
         }
     }
@@ -135,7 +138,7 @@ internal class NowPlayingWidgetUpdater(
         tickJob = null
     }
 
-    private fun hasWidgets(): Boolean = manager.getAppWidgetIds(component).isNotEmpty()
+    private fun widgetIds(): IntArray = manager.getAppWidgetIds(component)
 
     private fun snapshot(player: Player) = WidgetSnapshot(
         title = player.mediaMetadata.title?.toString().orEmpty(),

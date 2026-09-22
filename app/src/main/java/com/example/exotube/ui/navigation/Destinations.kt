@@ -23,3 +23,10 @@ data object PlaylistsDestination
 
 @Serializable
 data class PlaylistDestination(val playlistId: Long)
+
+/**
+ * El canal de YouTube de un autor. [channelUrl] puede faltar (algunos videos llegan sin él):
+ * entonces se averigua a partir de [videoUrl]. [name] se enseña arriba mientras carga.
+ */
+@Serializable
+data class ChannelDestination(val channelUrl: String?, val videoUrl: String?, val name: String)

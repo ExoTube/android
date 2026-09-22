@@ -1,4 +1,4 @@
-package com.example.exotube.player
+package com.example.exotube.data.network
 
 import org.junit.Assert.assertEquals
 import org.junit.Test

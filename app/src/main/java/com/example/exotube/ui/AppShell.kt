@@ -71,6 +71,7 @@ import com.example.exotube.playlist.PlaylistDetailRoute
 import com.example.exotube.playlist.PlaylistsScreen
 import com.example.exotube.playlist.PlaylistsViewModel
 import com.example.exotube.songedit.RenameSongDialog
+import com.example.exotube.channel.ChannelRoute
 import com.example.exotube.songedit.DeleteMediaDialog
 import com.example.exotube.songedit.SongEditEvent
 import com.example.exotube.songedit.SongEditViewModel
@@ -82,6 +83,8 @@ import com.example.exotube.ui.navigation.ExploreDestination
 import com.example.exotube.ui.navigation.LibraryDestination
 import com.example.exotube.ui.navigation.PlaylistDestination
 import com.example.exotube.ui.navigation.PlaylistsDestination
+import com.example.exotube.ui.navigation.ChannelDestination
+import com.example.exotube.domain.model.OnlineVideo
 
 /** Pestañas de la barra inferior. */
 private enum class TopLevelTab(val destination: Any, @StringRes val label: Int, @DrawableRes val icon: Int) {
@@ -147,6 +150,13 @@ fun AppShell(
     }
     val online by playerViewModel.online.collectAsStateWithLifecycle()
 
+    // Abrir el canal de un video en línea, desde Explorar o desde "Reproduciendo". El
+    // reproductor se baja para que se vea el canal; la música sigue sonando.
+    val openChannel: (OnlineVideo) -> Unit = { video ->
+        showNowPlaying = false
+        navController.navigate(ChannelDestination(video.channelUrl, video.url, video.channel.orEmpty()))
+    }
+
     // Cambiar la portada, el nombre y borrar comparten el permiso que pide Android.
     val songEditViewModel: SongEditViewModel = viewModel(factory = SongEditViewModel.Factory)
     val onChangeCover = rememberChangeCoverAction(
@@ -195,6 +205,7 @@ fun AppShell(
                             playerViewModel.playOnline(video, stream, audioOnly)
                             showNowPlaying = true // lo que se toca se ve: abrimos el reproductor
                         },
+                        onOpenChannel = openChannel,
                         onGoToLibrary = { navController.navigate(LibraryDestination) },
                         contentPadding = padding,
                     )
@@ -229,6 +240,17 @@ fun AppShell(
                             contentPadding = padding,
                         )
                     }
+                }
+                composable<ChannelDestination> { entry ->
+                    ChannelRoute(
+                        title = entry.toRoute<ChannelDestination>().name,
+                        onPlayOnline = { video, stream, audioOnly ->
+                            playerViewModel.playOnline(video, stream, audioOnly)
+                            showNowPlaying = true
+                        },
+                        onBack = { navController.popBackStack() },
+                        contentPadding = padding,
+                    )
                 }
                 composable<PlaylistsDestination> {
                     PlaylistsScreen(
@@ -267,6 +289,7 @@ fun AppShell(
                     onCollapse = { showNowPlaying = false },
                     online = online,
                     onChangeQuality = playerViewModel::changeQuality,
+                    onOpenChannel = openChannel,
                 )
             }
         }

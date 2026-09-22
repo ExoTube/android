@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.os.Build
+import android.os.Bundle
 import android.view.KeyEvent
 import android.view.View
 import android.widget.RemoteViews
@@ -30,8 +31,21 @@ class NowPlayingWidget : AppWidgetProvider() {
         if (updater != null) {
             updater.refresh()
         } else {
-            manager.updateAppWidget(appWidgetIds, WidgetViews.idle(context))
+            manager.updateEach(appWidgetIds) { layout -> WidgetViews.idle(context, layout) }
         }
+    }
+
+    /**
+     * El usuario cambió el tamaño del widget: puede que ahora quepa la otra versión (normal o
+     * compacta), así que se vuelve a pintar.
+     */
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        manager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        onUpdate(context, manager, intArrayOf(appWidgetId))
     }
 
     companion object {
@@ -43,7 +57,7 @@ class NowPlayingWidget : AppWidgetProvider() {
         fun resetToIdle(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = manager.getAppWidgetIds(ComponentName(context, NowPlayingWidget::class.java))
-            if (ids.isNotEmpty()) manager.updateAppWidget(ids, WidgetViews.idle(context))
+            manager.updateEach(ids) { layout -> WidgetViews.idle(context, layout) }
         }
     }
 }
@@ -73,7 +87,7 @@ internal class WidgetArtwork(val cover: Bitmap, val backdrop: Bitmap)
 internal object WidgetViews {
 
     /** Nada sonando: disco quieto, brazo levantado, y cualquier toque abre la app. */
-    fun idle(context: Context): RemoteViews = RemoteViews(context.packageName, R.layout.widget_now_playing).apply {
+    fun idle(context: Context, layout: WidgetLayout): RemoteViews = RemoteViews(context.packageName, layout.resId).apply {
         setTextViewText(R.id.widget_title, context.getString(R.string.widget_idle_title))
         setTextViewText(R.id.widget_artist, context.getString(R.string.widget_idle_subtitle))
         showDisc(isSpinning = false, armDown = false)
@@ -86,8 +100,13 @@ internal object WidgetViews {
         ).forEach { setOnClickPendingIntent(it, openApp) }
     }
 
-    fun nowPlaying(context: Context, snapshot: WidgetSnapshot, artwork: WidgetArtwork?): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_now_playing).apply {
+    fun nowPlaying(
+        context: Context,
+        layout: WidgetLayout,
+        snapshot: WidgetSnapshot,
+        artwork: WidgetArtwork?,
+    ): RemoteViews =
+        RemoteViews(context.packageName, layout.resId).apply {
             setTextViewText(R.id.widget_title, snapshot.title)
             if (snapshot.artist.isNullOrBlank()) {
                 setViewVisibility(R.id.widget_artist, View.GONE)
@@ -132,8 +151,8 @@ internal object WidgetViews {
         }
 
     /** Solo la barra y los tiempos: lo que cambia cada segundo, sin volver a mandar imágenes. */
-    fun progress(context: Context, snapshot: WidgetSnapshot): RemoteViews =
-        RemoteViews(context.packageName, R.layout.widget_now_playing).apply { showProgress(snapshot) }
+    fun progress(context: Context, layout: WidgetLayout, snapshot: WidgetSnapshot): RemoteViews =
+        RemoteViews(context.packageName, layout.resId).apply { showProgress(snapshot) }
 
     private fun RemoteViews.showProgress(snapshot: WidgetSnapshot) {
         setProgressBar(R.id.widget_progress, PROGRESS_MAX, progressOf(snapshot.positionMs, snapshot.durationMs), false)
@@ -184,6 +203,22 @@ internal object WidgetViews {
     private const val PROGRESS_MAX = 1_000
     private const val REQUEST_OPEN_APP = 7_000
     private const val REQUEST_MEDIA_BUTTON_BASE = 7_100
+}
+
+/**
+ * Pinta cada widget con la versión que cabe en su hueco: uno puede estar en 3x3 y otro en 4x4 a
+ * la vez, así que no se les puede mandar a todos lo mismo.
+ */
+internal fun AppWidgetManager.updateEach(ids: IntArray, build: (WidgetLayout) -> RemoteViews) {
+    ids.forEach { id -> updateAppWidget(id, build(WidgetLayout.forWidget(this, id))) }
+}
+
+/**
+ * Como [updateEach], pero solo con lo que cambia. Tiene que usar la misma versión que ya tiene
+ * cada widget: Android no deja aplicar cambios de una versión sobre la otra.
+ */
+internal fun AppWidgetManager.partiallyUpdateEach(ids: IntArray, build: (WidgetLayout) -> RemoteViews) {
+    ids.forEach { id -> partiallyUpdateAppWidget(id, build(WidgetLayout.forWidget(this, id))) }
 }
 
 /**
