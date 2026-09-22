@@ -10,8 +10,10 @@ import com.example.exotube.ExoTubeApp
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
+import com.example.exotube.domain.model.Recommendation
 import com.example.exotube.domain.model.StreamSource
 import com.example.exotube.domain.repository.OnlineCatalogRepository
+import com.example.exotube.domain.repository.RecommendationRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -21,8 +23,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
-/** Atajos de la pantalla Explorar: cada uno es, por dentro, una búsqueda en YouTube. */
+/**
+ * Atajos de la pantalla Explorar.
+ *
+ * Casi todos son, por dentro, una búsqueda en YouTube. [FOR_YOU] es la excepción: en vez de
+ * buscar algo fijo, mira lo que el usuario ha escuchado y pide recomendaciones. Por eso su
+ * consulta va vacía.
+ */
 enum class ExploreTopic(val query: String, @StringRes val labelRes: Int) {
+    FOR_YOU("", R.string.explore_topic_for_you),
     MUSIC("música", R.string.explore_topic_music),
     LATIN("reggaeton", R.string.explore_topic_latin),
     ROCK("rock", R.string.explore_topic_rock),
@@ -36,6 +45,12 @@ sealed interface ExploreResults {
     data object Loading : ExploreResults
     data class Ready(val videos: List<OnlineVideo>) : ExploreResults
     data class Error(val error: MediaError) : ExploreResults
+
+    /** "Para ti": bloques con el motivo de cada uno ("Porque escuchaste …"). */
+    data class ForYou(val blocks: List<Recommendation>) : ExploreResults
+
+    /** Todavía no hay nada que escuchar de dónde sacar recomendaciones. */
+    data object NothingListenedYet : ExploreResults
 }
 
 data class ExploreUiState(
@@ -57,7 +72,10 @@ sealed interface ExploreEvent {
     data class ResolveFailed(val error: MediaError) : ExploreEvent
 }
 
-class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel() {
+class ExploreViewModel(
+    private val catalog: OnlineCatalogRepository,
+    private val recommendations: RecommendationRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
@@ -71,7 +89,12 @@ class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel
     private var resolveJob: Job? = null
 
     init {
-        load(ExploreTopic.MUSIC.query)
+        // Se abre en "Para ti" si hay historial; si no, en Música, que es lo útil el primer día.
+        viewModelScope.launch {
+            val topic = if (recommendations.hasEnoughHistory()) ExploreTopic.FOR_YOU else ExploreTopic.MUSIC
+            _uiState.value = _uiState.value.copy(topic = topic)
+            loadTopic(topic)
+        }
     }
 
     /** Se escribe libremente; no se busca hasta que el usuario lo pide (cada búsqueda cuesta). */
@@ -88,7 +111,7 @@ class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel
 
     fun onTopicSelected(topic: ExploreTopic) {
         _uiState.value = _uiState.value.copy(topic = topic, query = "", isTopicSelected = true)
-        load(topic.query)
+        loadTopic(topic)
     }
 
     fun onAudioOnlyChange(audioOnly: Boolean) {
@@ -97,7 +120,7 @@ class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel
 
     fun onRetry() {
         val state = _uiState.value
-        load(if (state.isTopicSelected) state.topic.query else state.query.trim())
+        if (state.isTopicSelected) loadTopic(state.topic) else load(state.query.trim())
     }
 
     /**
@@ -119,6 +142,30 @@ class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel
         }
     }
 
+    private fun loadTopic(topic: ExploreTopic) {
+        if (topic == ExploreTopic.FOR_YOU) loadForYou() else load(topic.query)
+    }
+
+    /**
+     * Recomendaciones a partir de lo que el usuario escucha.
+     *
+     * Tarda más que una búsqueda normal porque consulta varias listas a la vez, así que la
+     * pantalla enseña que está trabajando desde el primer momento.
+     */
+    private fun loadForYou() {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
+            val results = recommendations.forYou().fold(
+                onSuccess = { blocks ->
+                    if (blocks.isEmpty()) ExploreResults.NothingListenedYet else ExploreResults.ForYou(blocks)
+                },
+                onFailure = { ExploreResults.Error(it.asMediaError()) },
+            )
+            _uiState.value = _uiState.value.copy(results = results)
+        }
+    }
+
     private fun load(query: String) {
         searchJob?.cancel() // una búsqueda nueva deja obsoleta la anterior
         searchJob = viewModelScope.launch {
@@ -135,7 +182,7 @@ class ExploreViewModel(private val catalog: OnlineCatalogRepository) : ViewModel
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as ExoTubeApp
-                ExploreViewModel(app.container.onlineCatalog)
+                ExploreViewModel(app.container.onlineCatalog, app.container.recommendations)
             }
         }
     }

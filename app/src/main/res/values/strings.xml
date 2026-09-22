@@ -31,6 +31,10 @@
     <string name="explore_subtitle">Videos y música en línea, sin anuncios.</string>
     <string name="explore_search_hint">Buscar en YouTube</string>
     <string name="explore_audio_only">Ahorrar datos</string>
+    <string name="explore_topic_for_you">Para ti</string>
+    <string name="explore_because_you_listened">Porque escuchaste %1$s</string>
+    <string name="explore_for_you_empty_title">Aún no hay nada que recomendarte</string>
+    <string name="explore_for_you_empty_body">Escucha algo y aquí aparecerán sugerencias parecidas. Lo que escuchas se guarda solo en este teléfono: no se sube a ningún sitio y no hace falta ninguna cuenta.</string>
     <string name="explore_topic_music">Música</string>
     <string name="explore_topic_latin">Reggaetón</string>
     <string name="explore_topic_rock">Rock</string>
@@ -214,4 +218,18 @@
     <string name="whats_new_subtitle">Esto es lo que se ha añadido</string>
     <string name="whats_new_continue">Empezar</string>
     <string name="whats_new_notes">VIDEOS\n• Videoclips de verdad en Explorar, no solo el audio, hasta 1080p.\n• Pantalla completa en horizontal, en línea y con lo descargado.\n• Ventana flotante: el video sigue encima de otras apps al salir.\n• Los enlaces cargan más rápido y se recuerdan un rato.\n\nTU MÚSICA\n• Pestaña Álbumes: tus canciones agrupadas por álbum o por artista.\n• Recortar audio: quédate con el trozo que quieras, en un archivo aparte.\n• Cambiar la portada de una canción por la foto que elijas.\n• Cambiar el nombre de una canción.\n\nSONIDO\n• Ecualizador con refuerzo de volumen.\n\nY AHORA\n• ExoTube te avisa sola cuando hay una versión nueva y la instala desde aquí.</string>
+
+    <!-- Comentarios de los videos en linea -->
+    <string name="comments_open">Ver comentarios</string>
+    <string name="comments_loading">Trayendo los comentarios de YouTube… puede tardar unos segundos.</string>
+    <string name="comments_none">Este video no tiene comentarios, o los tiene desactivados.</string>
+    <string name="comments_read_only">Solo lectura: para escribir haría falta una cuenta de Google, y ExoTube no pide ninguna.</string>
+    <plurals name="comments_title">
+        <item quantity="one">%1$d comentario</item>
+        <item quantity="other">%1$d comentarios</item>
+    </plurals>
+    <plurals name="comments_replies">
+        <item quantity="one">%1$d respuesta</item>
+        <item quantity="other">%1$d respuestas</item>
+    </plurals>
 </resources>

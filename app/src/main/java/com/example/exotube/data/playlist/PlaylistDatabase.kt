@@ -12,6 +12,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.exotube.data.history.ListeningDao
+import com.example.exotube.data.history.ListeningEntity
 import kotlinx.coroutines.flow.Flow
 
 // Room: escribes clases y consultas SQL con anotaciones, y KSP genera el código de SQLite.
@@ -99,18 +101,22 @@ interface PlaylistDao {
 }
 
 /**
- * Versión 2 añade `playlists.coverPath`. Quien ya tenía la app con la versión 1 NO pierde sus
- * playlists: AutoMigration compara app/schemas/…/1.json con el esquema nuevo y genera el
- * ALTER TABLE necesario. (Sin migración, Room se negaría a abrir la base de datos.)
+ * Versión 2 añade `playlists.coverPath` y la 3, la tabla del historial de escucha.
+ *
+ * Quien ya tenía la app NO pierde sus playlists: AutoMigration compara los esquemas guardados en
+ * app/schemas/ con el nuevo y genera el SQL necesario. (Sin migración, Room se negaría a abrir la
+ * base de datos y la app no arrancaría.)
  */
 @Database(
-    entities = [PlaylistEntity::class, PlaylistItemEntity::class],
-    version = 2,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    entities = [PlaylistEntity::class, PlaylistItemEntity::class, ListeningEntity::class],
+    version = 3,
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class ExoTubeDatabase : RoomDatabase() {
 
     abstract fun playlistDao(): PlaylistDao
+
+    abstract fun listeningDao(): ListeningDao
 
     companion object {
         fun create(context: Context): ExoTubeDatabase =

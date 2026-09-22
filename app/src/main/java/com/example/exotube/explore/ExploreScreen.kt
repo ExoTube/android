@@ -28,6 +28,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaError
+import com.example.exotube.comments.CommentsRoute
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
 import com.example.exotube.ui.components.OnlineVideoRow
@@ -76,6 +80,9 @@ fun ExploreRoute(
         }
     }
 
+    // El video cuyos comentarios se estan mirando; null = hoja cerrada.
+    var videoWithComments by remember { mutableStateOf<OnlineVideo?>(null) }
+
     ExploreScreen(
         state = state,
         onQueryChange = viewModel::onQueryChange,
@@ -84,10 +91,15 @@ fun ExploreRoute(
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
         onVideoSelected = viewModel::onVideoSelected,
         onDownload = { context.startActivity(shareToSelf(it)) },
+        onComments = { videoWithComments = it },
         onRetry = viewModel::onRetry,
         onGoToLibrary = onGoToLibrary,
         contentPadding = contentPadding,
     )
+
+    videoWithComments?.let { video ->
+        CommentsRoute(video = video, onDismiss = { videoWithComments = null })
+    }
 }
 
 /**
@@ -111,6 +123,7 @@ fun ExploreScreen(
     onAudioOnlyChange: (Boolean) -> Unit,
     onVideoSelected: (OnlineVideo) -> Unit,
     onDownload: (OnlineVideo) -> Unit,
+    onComments: (OnlineVideo) -> Unit,
     onRetry: () -> Unit,
     onGoToLibrary: () -> Unit,
     contentPadding: PaddingValues,
@@ -149,6 +162,26 @@ fun ExploreScreen(
                     modifier = Modifier.fillParentMaxHeight(0.6f),
                 )
             }
+            // "Para ti": un bloque por motivo, cada uno con su encabezado explicando de donde
+            // sale. Van seguidos en la misma lista, no en carruseles horizontales: aqui lo que
+            // se quiere es descubrir, y una lista vertical se lee entera sin tener que arrastrar.
+            is ExploreResults.ForYou -> results.blocks.forEach { block ->
+                item(key = "motivo-${block.becauseOf}") { BecauseYouListened(block.becauseOf) }
+                items(block.videos, key = { "${block.becauseOf}-${it.id}" }) { video ->
+                    OnlineVideoRow(
+                        video = video,
+                        isResolving = video.id == state.resolvingId,
+                        onClick = { onVideoSelected(video) },
+                        onDownload = { onDownload(video) },
+                        onComments = { onComments(video) },
+                    )
+                }
+            }
+
+            ExploreResults.NothingListenedYet -> item {
+                NothingListenedYet(Modifier.fillParentMaxHeight(0.6f))
+            }
+
             is ExploreResults.Ready -> if (results.videos.isEmpty()) {
                 item { EmptyResults(Modifier.fillParentMaxHeight(0.6f)) }
             } else {
@@ -158,6 +191,7 @@ fun ExploreScreen(
                         isResolving = video.id == state.resolvingId,
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
+                        onComments = { onComments(video) },
                     )
                 }
             }
@@ -247,6 +281,53 @@ private fun ExploreError(
     }
 }
 
+/** El encabezado de cada bloque de "Para ti": de dónde sale lo que viene debajo. */
+@Composable
+private fun BecauseYouListened(becauseOf: String) {
+    Text(
+        text = stringResource(R.string.explore_because_you_listened, becauseOf),
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 4.dp),
+    )
+}
+
+/**
+ * Lo que se ve en "Para ti" antes de haber escuchado nada.
+ *
+ * Explica de dónde saldrán las sugerencias y, sobre todo, que el historial se queda en el
+ * teléfono: una pantalla que dice "te voy a recomendar según lo que escuchas" sin aclarar eso
+ * es justo la que hace pensar que la app te está espiando.
+ */
+@Composable
+private fun NothingListenedYet(modifier: Modifier = Modifier) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier.fillMaxWidth().padding(horizontal = 32.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_explore),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.explore_for_you_empty_title),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.explore_for_you_empty_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
 @Composable
 private fun EmptyResults(modifier: Modifier = Modifier) {
     CenteredMessage(
@@ -329,6 +410,7 @@ private fun ExploreScreenPreview() {
             onAudioOnlyChange = {},
             onVideoSelected = {},
             onDownload = {},
+            onComments = {},
             onRetry = {},
             onGoToLibrary = {},
             contentPadding = PaddingValues(),
@@ -348,6 +430,7 @@ private fun ExploreOfflinePreview() {
             onAudioOnlyChange = {},
             onVideoSelected = {},
             onDownload = {},
+            onComments = {},
             onRetry = {},
             onGoToLibrary = {},
             contentPadding = PaddingValues(),

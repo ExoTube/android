@@ -17,7 +17,9 @@ import com.example.exotube.data.update.GitHubUpdateRepository
 import com.example.exotube.data.update.UpdateSettings
 import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
+import com.example.exotube.data.ytdlp.YtDlpComments
 import com.example.exotube.data.ytdlp.YtDlpEngine
+import com.example.exotube.data.ytdlp.YtDlpRecommendations
 import com.example.exotube.domain.repository.AudioEditor
 import com.example.exotube.domain.repository.DownloadHistoryRepository
 import com.example.exotube.domain.repository.DownloadScheduler
@@ -26,6 +28,8 @@ import com.example.exotube.domain.repository.PlaylistRepository
 import com.example.exotube.domain.repository.MediaDownloader
 import com.example.exotube.domain.repository.MediaRepository
 import com.example.exotube.domain.repository.OnlineCatalogRepository
+import com.example.exotube.domain.repository.CommentsRepository
+import com.example.exotube.domain.repository.RecommendationRepository
 import com.example.exotube.domain.repository.UpdateRepository
 import com.example.exotube.download.MediaStoreSaver
 import com.example.exotube.player.AudioEffects
@@ -57,6 +61,9 @@ class AppContainer(context: Context) {
 
     val onlineCatalog: OnlineCatalogRepository by lazy { YtDlpCatalog(ytDlpEngine) }
 
+    /** Los comentarios de los videos en linea. Solo lectura: ExoTube no publica nada. */
+    val comments: CommentsRepository by lazy { YtDlpComments(ytDlpEngine) }
+
     val downloadScheduler: DownloadScheduler by lazy { WorkManagerDownloadScheduler(appContext) }
 
     val mediaSaver: MediaStoreSaver by lazy { MediaStoreSaver(appContext) }
@@ -87,6 +94,14 @@ class AppContainer(context: Context) {
     val apkInstaller: ApkInstaller by lazy { ApkInstaller(appContext) }
 
     private val database by lazy { ExoTubeDatabase.create(appContext) }
+
+    /** El historial de escucha, que no sale nunca de este telefono. */
+    val listeningDao by lazy { database.listeningDao() }
+
+    /** "Para ti": recomienda a partir de ese historial, sin cuentas ni servidor propio. */
+    val recommendations: RecommendationRepository by lazy {
+        YtDlpRecommendations(ytDlpEngine, listeningDao)
+    }
 
     val playlistRepository: PlaylistRepository by lazy {
         RoomPlaylistRepository(database.playlistDao(), libraryRepository, PlaylistCoverStore(appContext))

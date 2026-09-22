@@ -12,6 +12,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.exotube.data.history.ListeningRecorder
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
@@ -64,6 +65,11 @@ class PlaybackService : MediaSessionService() {
             .setHandleAudioBecomingNoisy(true) // pausa si se desconectan los auriculares
             .build()
         player.addListener(RepeatCountdown())
+        // Apunta lo que se escucha para alimentar "Para ti". Va aqui y no en la pantalla porque
+        // la musica sigue sonando con la app cerrada: si lo llevara la pantalla, casi nada
+        // contaria. El historial se queda en este telefono.
+        val container = (application as ExoTubeApp).container
+        ListeningRecorder(container.listeningDao, container.applicationScope).attachTo(player)
 
         // Los efectos de audio no se aplican a una app, sino a una "sesión de audio": un número
         // que identifica el flujo de sonido. Creamos la nuestra y se la damos al reproductor, en

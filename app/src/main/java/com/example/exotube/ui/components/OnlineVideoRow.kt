@@ -46,6 +46,7 @@ fun OnlineVideoRow(
     isResolving: Boolean,
     onClick: () -> Unit,
     onDownload: () -> Unit,
+    onComments: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -73,6 +74,13 @@ fun OnlineVideoRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        IconButton(onClick = onComments) {
+            Icon(
+                painter = painterResource(R.drawable.ic_comment),
+                contentDescription = stringResource(R.string.comments_open),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         IconButton(onClick = onDownload) {
             Icon(
