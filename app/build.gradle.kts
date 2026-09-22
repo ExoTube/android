@@ -40,8 +40,8 @@ android {
         targetSdk = 37
         // versionCode es el número que compara Android para saber si una versión es más nueva:
         // sube de uno en uno y nunca se repite. versionName es solo lo que ve el usuario.
-        versionCode = 3
-        versionName = "1.2"
+        versionCode = 4
+        versionName = "1.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
