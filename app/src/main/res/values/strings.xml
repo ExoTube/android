@@ -263,6 +263,9 @@
     <string name="channel_videos">Videos</string>
     <string name="channel_empty">Este canal todavía no tiene videos.</string>
 
+    <!-- Hoja de descarga: vista previa rápida -->
+    <string name="sheet_refining">Ya puedes elegir. Buscando todas las calidades…</string>
+
     <!-- Ajustes -->
     <string name="settings_open">Ajustes</string>
     <string name="settings_title">Ajustes</string>

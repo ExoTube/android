@@ -16,4 +16,10 @@ interface MediaRepository {
      * @return [Result.success] con la metadata o [Result.failure] con un [MediaError].
      */
     suspend fun fetchMediaInfo(url: String): Result<MediaInfo>
+
+    /**
+     * Un primer vistazo rápido (título, miniatura, opciones básicas) para enseñar algo mientras
+     * [fetchMediaInfo] termina. null si no hay forma rápida para ese enlace: entonces se espera.
+     */
+    suspend fun previewMediaInfo(url: String): MediaInfo? = null
 }

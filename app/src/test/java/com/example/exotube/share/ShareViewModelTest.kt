@@ -8,7 +8,9 @@ import com.example.exotube.domain.repository.DownloadScheduler
 import com.example.exotube.domain.repository.MediaRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -121,6 +123,86 @@ class ShareViewModelTest {
         assertEquals(format, request.format)
         assertEquals(2, request.playlistIndex)
         assertEquals(ShareUiState.DownloadStarted(media, format), viewModel.uiState.value)
+    }
+
+    /** Vista previa en 1 s y análisis completo en 5 s, como TikTok en un teléfono. */
+    private class SlowRepository(
+        private val preview: MediaInfo?,
+        private val full: Result<MediaInfo>,
+    ) : MediaRepository {
+        override suspend fun previewMediaInfo(url: String): MediaInfo? {
+            delay(1_000)
+            return preview
+        }
+
+        override suspend fun fetchMediaInfo(url: String): Result<MediaInfo> {
+            delay(5_000)
+            return full
+        }
+    }
+
+    private val tiktokPreview = sampleMediaInfo("https://www.tiktok.com/@a/video/1").copy(title = "Vista previa")
+    private val tiktokFull = sampleMediaInfo("https://www.tiktok.com/@a/video/1").copy(title = "Completo")
+
+    @Test
+    fun `la vista previa sale primero y luego la cambia el análisis completo`() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowRepository(tiktokPreview, Result.success(tiktokFull)))
+        viewModel.onSharedText(tiktokPreview.sourceUrl)
+
+        advanceTimeBy(1_500)
+        assertEquals(ShareUiState.Ready(tiktokPreview, isRefining = true), viewModel.uiState.value)
+
+        advanceUntilIdle()
+        assertEquals(ShareUiState.Ready(tiktokFull), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `se puede descargar desde la vista previa sin esperar`() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowRepository(tiktokPreview, Result.success(tiktokFull)))
+        viewModel.onSharedText(tiktokPreview.sourceUrl)
+        advanceTimeBy(1_500)
+
+        val format = tiktokPreview.formats.first()
+        viewModel.onFormatSelected(format)
+        advanceUntilIdle()
+
+        assertEquals(format, scheduler.requests.single().format)
+        // Al llegar el análisis completo, la hoja no vuelve a abrirse: la descarga ya empezó.
+        assertEquals(ShareUiState.DownloadStarted(tiktokPreview, format), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `si el análisis completo falla, se dice aunque hubiera vista previa`() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowRepository(tiktokPreview, Result.failure(MediaError.PrivateContent)))
+        viewModel.onSharedText(tiktokPreview.sourceUrl)
+
+        advanceUntilIdle()
+
+        assertEquals(ShareUiState.Error(MediaError.PrivateContent), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `sin vista previa se espera al análisis completo, como antes`() = runTest(dispatcher) {
+        val viewModel = viewModel(SlowRepository(preview = null, full = Result.success(tiktokFull)))
+        viewModel.onSharedText(tiktokFull.sourceUrl)
+
+        advanceTimeBy(1_500)
+        assertEquals(ShareUiState.Loading, viewModel.uiState.value)
+
+        advanceUntilIdle()
+        assertEquals(ShareUiState.Ready(tiktokFull), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `los pesos que estimó la vista previa se quedan si yt-dlp no los sabe`() {
+        val preview = tiktokPreview.copy(formats = tiktokPreview.formats.map { it.copy(sizeBytes = 1_000) })
+        val full = tiktokFull.copy(formats = tiktokFull.formats.mapIndexed { i, f -> f.copy(sizeBytes = if (i == 0) null else 5L) })
+
+        val merged = full.withSizesFrom(preview)
+
+        assertEquals(1_000L, merged.formats[0].sizeBytes) // yt-dlp no lo sabía: el estimado
+        assertEquals(5L, merged.formats[1].sizeBytes) // yt-dlp lo sabía: gana yt-dlp
+        assertEquals(full, full.withSizesFrom(null))
     }
 
     @Test

@@ -24,6 +24,8 @@ import com.example.exotube.data.playlist.RoomPlaylistRepository
 import com.example.exotube.data.update.ApkInstaller
 import com.example.exotube.data.update.GitHubUpdateRepository
 import com.example.exotube.data.update.UpdateSettings
+import com.example.exotube.data.preview.LinkPreviewer
+import com.example.exotube.data.ytdlp.InfoJsonCache
 import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
 import com.example.exotube.data.ytdlp.YtDlpEngine
@@ -47,6 +49,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
+import java.io.File
 
 /**
  * Inyección de dependencias manual: el único lugar donde se eligen las implementaciones.
@@ -63,7 +66,14 @@ class AppContainer(context: Context) {
     val ytDlpEngine = YtDlpEngine(appContext)
 
     /** Descargas con yt-dlp; los enlaces de YouTube se reconocen antes con NewPipe. */
-    private val mediaExtractor by lazy { MediaExtractorManager(ytDlpEngine, NewPipeMediaInfo(streamHttpClient)) }
+    private val mediaExtractor by lazy {
+        MediaExtractorManager(
+            engine = ytDlpEngine,
+            quickInfo = NewPipeMediaInfo(streamHttpClient),
+            previewer = LinkPreviewer(streamHttpClient),
+            infoCache = InfoJsonCache(File(appContext.cacheDir, "analisis")),
+        )
+    }
 
     // Para diseñar la UI sin red ni yt-dlp, cámbialo por FakeMediaRepository().
     val mediaRepository: MediaRepository get() = mediaExtractor

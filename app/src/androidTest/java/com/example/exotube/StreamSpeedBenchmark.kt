@@ -8,6 +8,8 @@ import com.example.exotube.data.newpipe.NewPipeChannels
 import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.data.newpipe.NewPipeSearch
 import com.example.exotube.data.newpipe.NewPipeStreamResolver
+import com.example.exotube.data.preview.LinkPreviewer
+import com.example.exotube.data.ytdlp.InfoJsonCache
 import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
 import com.example.exotube.data.ytdlp.YtDlpEngine
@@ -133,6 +135,134 @@ class StreamSpeedBenchmark {
         }
         log("  la descarga tardó $ms ms")
         dir.deleteRecursively()
+    }
+
+    /**
+     * Dónde se va el tiempo al reconocer enlaces que no son de YouTube (esos solo los entiende
+     * yt-dlp). Se separa lo que cuesta solo arrancar Python ("--version") de lo que cuesta
+     * preguntar a cada sitio, y se mide la página tal cual con OkHttp para ver cuánto es red.
+     */
+    @Test
+    fun medirOtrasPlataformas() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val manager = MediaExtractorManager(engine)
+
+        val startups = (1..3).map { measureTimeMillis { engine.run(engine.newRequest("").addOption("--version")) } }
+        log("ARRANQUE de Python + yt-dlp (--version): ${startups.summary()}")
+
+        val urls = listOf(
+            "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+            "https://www.tiktok.com/@leenabhushan/video/6748451240264420610",
+            "https://x.com/starwars/status/665052190608723968",
+            "https://twitter.com/freethenipple/status/643211948184596480",
+            "https://www.instagram.com/reel/Chunk8-jurw/",
+            "https://www.instagram.com/p/Bm8OoRrlJk1/",
+            "https://www.facebook.com/watch/?v=274175099429670",
+            "https://www.facebook.com/facebook/videos/10153231379946729/",
+        )
+        val only = InstrumentationRegistry.getArguments().getString("url")
+        for (url in if (only != null) listOf(only) else urls) {
+            val pageMs = measureTimeMillis {
+                runCatching { client.newCall(Request.Builder().url(url).build()).execute().use { it.body?.bytes() } }
+            }
+            repeat(2) { attempt ->
+                var result: Result<MediaInfo>? = null
+                val ms = measureTimeMillis { result = manager.fetchMediaInfo(url) }
+                val what = result?.getOrNull()?.formats?.joinToString { it.label }
+                    ?: "FALLO ${result?.exceptionOrNull()?.let { it::class.simpleName + " " + (it.cause ?: it).message?.takeLast(300) }}"
+                log("${url.take(60).padEnd(60)} intento ${attempt + 1}: ${ms} ms (página sola ${pageMs} ms)  $what")
+            }
+        }
+    }
+
+    /**
+     * Descargar desde el enlace (yt-dlp vuelve a analizarlo) o desde el análisis que ya hizo la
+     * hoja de descarga (--load-info-json). Se baja lo mismo las dos veces, en MP3.
+     */
+    @Test
+    fun medirDescargaConJson() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val url = InstrumentationRegistry.getArguments().getString("url")
+            ?: "https://www.tiktok.com/@scout2015/video/6718335390845095173"
+        val json = File(context.cacheDir, "prueba-info.json")
+        val analysisMs = measureTimeMillis {
+            json.writeText(engine.run(engine.newRequest(url).addOption("--dump-single-json").addOption("--no-playlist")).out)
+        }
+        log("análisis (lo que hace la hoja): $analysisMs ms, ${json.length() / 1000} KB")
+
+        repeat(2) { round ->
+            for (useJson in listOf(false, true)) {
+                val dir = File(context.cacheDir, "prueba-json-$useJson").apply { deleteRecursively(); mkdirs() }
+                val request = (if (useJson) engine.newRequest("").addOption("--load-info-json", json.absolutePath) else engine.newRequest(url))
+                    .addOption("-f", "ba/b").addOption("-x").addOption("--audio-format", "mp3")
+                    .addOption("-o", File(dir, "%(title).60B.%(ext)s").absolutePath).addOption("--no-playlist")
+                var outcome = ""
+                val ms = measureTimeMillis {
+                    outcome = runCatching { engine.run(request); dir.listFiles()?.joinToString { "${it.name.takeLast(20)} ${it.length() / 1000} KB" } }
+                        .getOrElse { "FALLO ${it.message?.takeLast(200)}" }.orEmpty()
+                }
+                log("ronda ${round + 1} ${if (useJson) "con el análisis guardado" else "desde el enlace       "}: $ms ms  $outcome")
+                dir.deleteRecursively()
+            }
+        }
+        json.delete()
+    }
+
+    /**
+     * La hoja de descarga de TikTok y X como la vive el usuario: cuándo aparece la vista previa,
+     * cuándo llega el análisis completo, y cuánto tarda luego la descarga (que ya reutiliza el
+     * análisis). Se descarga la calidad más alta que ofrece la vista previa.
+     */
+    @Test
+    fun medirVistaPrevia() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val manager = MediaExtractorManager(
+            engine,
+            previewer = LinkPreviewer(client),
+            infoCache = InfoJsonCache(File(context.cacheDir, "prueba-analisis")),
+        )
+        val urls = listOf(
+            "https://www.tiktok.com/@scout2015/video/6718335390845095173",
+            "https://x.com/StormChasingVideo/status/1575560063510810624",
+        )
+        for (url in urls) {
+            var preview: MediaInfo? = null
+            val previewMs = measureTimeMillis { preview = manager.previewMediaInfo(url) }
+            log("${url.take(50)} vista previa: $previewMs ms  ${preview?.formats?.joinToString { "${it.label}:${it.sizeBytes?.div(1000)}KB" } ?: "NINGUNA"}")
+            var full: MediaInfo? = null
+            val fullMs = measureTimeMillis { full = manager.fetchMediaInfo(url).getOrNull() }
+            log("${url.take(50)} completo    : $fullMs ms  ${full?.formats?.joinToString { "${it.label}:${it.sizeBytes?.div(1000)}KB" } ?: "FALLO"}")
+
+            val format = preview?.videoFormats?.firstOrNull() ?: continue
+            val dir = File(context.cacheDir, "prueba-vista").apply { deleteRecursively() }
+            val downloadMs = measureTimeMillis {
+                val file = runCatching {
+                    manager.download(DownloadRequest(url, preview!!.title, preview!!.platform, format, preview!!.playlistIndex), dir) {}
+                }.getOrElse { log("  descarga FALLO ${it.message?.takeLast(200)}"); null }
+                file?.let { log("  descarga ${format.label}: ${it.name.takeLast(25)} ${it.length() / 1000} KB") }
+            }
+            log("  la descarga tardó $downloadMs ms (con el análisis guardado)")
+            dir.deleteRecursively()
+        }
+    }
+
+    /** El mensaje completo de yt-dlp con un enlace, para entender por qué falla. */
+    @Test
+    fun diagnosticar() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val url = InstrumentationRegistry.getArguments().getString("url") ?: return@runBlocking
+        log("yt-dlp ${engine.run(engine.newRequest("").addOption("--version")).out.trim()}")
+        val ms = measureTimeMillis {
+            runCatching {
+                // Las mismas opciones que usa la hoja de descarga (MediaExtractorManager).
+                engine.run(
+                    engine.newRequest(url).addOption("-v").addOption("--dump-single-json").addOption("--no-playlist")
+                        .addOption("--flat-playlist").addOption("--playlist-items", "1-10"),
+                )
+            }.onSuccess { log("OK ${it.out.length} caracteres de JSON"); it.err.chunked(700).forEach(::log) }
+                .onFailure { e -> e.message.orEmpty().chunked(700).forEach(::log) }
+        }
+        log("tardó $ms ms")
     }
 
     /** Cuánto tarda una búsqueda con cada motor, y abrir un canal con NewPipe. */

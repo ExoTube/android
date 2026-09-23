@@ -25,6 +25,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -86,7 +87,7 @@ fun BottomSheetDownload(
     ) {
         when (uiState) {
             ShareUiState.Loading -> LoadingContent()
-            is ShareUiState.Ready -> FormatPicker(uiState.media, onFormatSelected)
+            is ShareUiState.Ready -> FormatPicker(uiState.media, onFormatSelected, isRefining = uiState.isRefining)
             // Mantiene la lista visible (con la opción marcada) mientras la hoja se oculta.
             is ShareUiState.DownloadStarted ->
                 FormatPicker(uiState.media, onFormatSelected = {}, selected = uiState.format)
@@ -100,10 +101,26 @@ private fun FormatPicker(
     media: MediaInfo,
     onFormatSelected: (MediaFormat) -> Unit,
     selected: MediaFormat? = null,
+    isRefining: Boolean = false,
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
         item { MediaHeader(media) }
-        item { HorizontalDivider(Modifier.padding(vertical = 8.dp)) }
+        // Una línea fina que se mueve: ya se puede elegir, pero todavía llegan más calidades.
+        item {
+            if (isRefining) {
+                Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    Text(
+                        text = stringResource(R.string.sheet_refining),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
+            } else {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            }
+        }
         formatSection(R.string.sheet_section_video, media.videoFormats, selected, onFormatSelected)
         formatSection(R.string.sheet_section_audio, media.audioFormats, selected, onFormatSelected)
     }

@@ -23,7 +23,11 @@ import kotlinx.coroutines.launch
 /** Todo lo que la pantalla puede mostrar. La UI solo dibuja el estado actual. */
 sealed interface ShareUiState {
     data object Loading : ShareUiState
-    data class Ready(val media: MediaInfo) : ShareUiState
+    /**
+     * Se puede elegir. Con [isRefining] lo que se ve es la vista previa rápida: ya se puede
+     * descargar, pero las calidades exactas y el peso aún están llegando.
+     */
+    data class Ready(val media: MediaInfo, val isRefining: Boolean = false) : ShareUiState
     data class Error(val error: MediaError) : ShareUiState
 
     /** El usuario eligió un formato: la UI cierra la hoja y termina la Activity. */
@@ -81,8 +85,20 @@ class ShareViewModel(
         // viewModelScope se cancela solo cuando el ViewModel muere: sin fugas de memoria.
         loadJob = viewModelScope.launch {
             _uiState.value = ShareUiState.Loading
-            _uiState.value = mediaRepository.fetchMediaInfo(url).fold(
-                onSuccess = { media -> ShareUiState.Ready(media) },
+            // Las dos a la vez: la vista previa llega en un segundo y el análisis completo en
+            // unos cinco. Si el completo gana (YouTube, o una red lenta), la previa ya no pinta.
+            var quick: MediaInfo? = null
+            val preview = launch {
+                val found = mediaRepository.previewMediaInfo(url) ?: return@launch
+                quick = found
+                if (_uiState.value == ShareUiState.Loading) _uiState.value = ShareUiState.Ready(found, isRefining = true)
+            }
+            val result = mediaRepository.fetchMediaInfo(url)
+            preview.cancel()
+            // Si ya se eligió una calidad durante la previa, la hoja se está cerrando: no se toca.
+            if (_uiState.value is ShareUiState.DownloadStarted) return@launch
+            _uiState.value = result.fold(
+                onSuccess = { media -> ShareUiState.Ready(media.withSizesFrom(quick)) },
                 onFailure = { error ->
                     ShareUiState.Error(error as? MediaError ?: MediaError.Unknown(error))
                 },
@@ -99,4 +115,17 @@ class ShareViewModel(
             }
         }
     }
+}
+
+/**
+ * Completa los pesos que no sabe yt-dlp con los que estimó la vista previa. Pasa con X: su
+ * vista previa calcula el peso de cada calidad y yt-dlp no, y sería raro que al terminar de
+ * cargar la hoja los pesos desaparecieran.
+ */
+internal fun MediaInfo.withSizesFrom(preview: MediaInfo?): MediaInfo {
+    if (preview == null) return this
+    val estimated = preview.formats.associate { (it.type to it.label) to it.sizeBytes }
+    return copy(formats = formats.map { format ->
+        if (format.sizeBytes != null) format else format.copy(sizeBytes = estimated[format.type to format.label])
+    })
 }
