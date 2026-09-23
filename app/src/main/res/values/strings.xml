@@ -326,4 +326,95 @@
     <string name="theme_wall_hint">Azul de red social</string>
     <string name="theme_chat">Chat</string>
     <string name="theme_chat_hint">Verde de mensajería</string>
+
+    <!-- Tutorial: controles -->
+    <string name="tour_progress">%1$d de %2$d</string>
+    <string name="tour_next">Siguiente</string>
+    <string name="tour_skip">Saltar</string>
+    <string name="tour_done">Entendido</string>
+    <string name="settings_tutorial">Ver el tutorial otra vez</string>
+    <string name="settings_tutorial_summary">Vuelve a explicar cada botón al entrar en cada pantalla</string>
+    <string name="settings_tutorial_restarted">Listo: el tutorial saldrá otra vez en cada pantalla.</string>
+
+    <!-- Tutorial: Biblioteca (lo primero que se ve al instalar) -->
+    <string name="tour_welcome_title">Bienvenido a ExoTube</string>
+    <string name="tour_welcome_body">Te enseñamos en un minuto para qué sirve cada botón. Puedes saltarlo cuando quieras y volver a verlo desde Ajustes.</string>
+    <string name="tour_tab_library_title">Biblioteca</string>
+    <string name="tour_tab_library_body">Todo lo que descargas con ExoTube y la música que ya tenías en el teléfono. Se escucha sin internet.</string>
+    <string name="tour_tab_explore_title">Explorar</string>
+    <string name="tour_tab_explore_body">Busca en YouTube y mira videos sin anuncios. Desde ahí también puedes descargarlos.</string>
+    <string name="tour_tab_albums_title">Álbumes</string>
+    <string name="tour_tab_albums_body">Tus canciones agrupadas por disco o por artista, en el orden del disco.</string>
+    <string name="tour_tab_playlists_title">Playlists</string>
+    <string name="tour_tab_playlists_body">Tus listas de canciones y videos, con la portada que tú elijas.</string>
+    <string name="tour_library_search_title">Buscar</string>
+    <string name="tour_library_search_body">Escribe el nombre de una canción, un video o un artista y la lista se filtra al momento.</string>
+    <string name="tour_library_filters_title">Filtros rápidos</string>
+    <string name="tour_library_filters_body">Todo, solo lo descargado con ExoTube, solo audio o solo video. Al tocar una canción suena esta lista en orden.</string>
+    <string name="tour_library_phone_title">Tu música del teléfono</string>
+    <string name="tour_library_phone_body">Toca Permitir y en la biblioteca verás también las canciones que ya tenías de antes.</string>
+    <string name="tour_library_menu_title">Más opciones</string>
+    <string name="tour_library_menu_body">Cada canción tiene su menú: añadir a una playlist, recortar, cambiar la portada, cambiar el nombre o borrarla.</string>
+    <string name="tour_library_settings_title">Ajustes</string>
+    <string name="tour_library_settings_body">Aquí eliges el tema de colores de la app y el filtro que esconde notas de voz y audios cortos.</string>
+    <string name="tour_share_title">Descargar desde cualquier red</string>
+    <string name="tour_share_body">En YouTube, TikTok, Instagram, X o Facebook toca Compartir en el video y elige ExoTube. Escoge la calidad o MP3 y se guarda solo en tu biblioteca.</string>
+    <string name="tour_widget_title">El widget tocadiscos</string>
+    <string name="tour_widget_body">Mantén pulsada la pantalla de inicio del teléfono, toca Widgets y añade el de ExoTube: un disco que gira, con botones para pausar y cambiar de canción.</string>
+
+    <!-- Tutorial: Explorar -->
+    <string name="tour_explore_search_title">Buscar en YouTube</string>
+    <string name="tour_explore_search_body">Escribe lo que quieras ver o escuchar. Al bajar hasta el final aparecen más resultados.</string>
+    <string name="tour_explore_saver_title">Ahorrar datos</string>
+    <string name="tour_explore_saver_body">Encendido, los videos se reproducen solo con sonido: gastan mucho menos de tu plan de datos.</string>
+    <string name="tour_explore_topics_title">Para ti y temas</string>
+    <string name="tour_explore_topics_body">Para ti recomienda según lo que escuchas. Los demás son atajos a música, reggaetón, rock, conciertos, podcasts y noticias.</string>
+    <string name="tour_explore_video_title">Ver al instante</string>
+    <string name="tour_explore_video_body">Toca un video para verlo aquí mismo, sin anuncios. Sigue sonando aunque salgas de la app.</string>
+    <string name="tour_explore_download_title">Descargar</string>
+    <string name="tour_explore_download_body">Elige la calidad del video o guárdalo como MP3. Irá a tu biblioteca.</string>
+    <string name="tour_explore_channel_title">El canal</string>
+    <string name="tour_explore_channel_body">Toca el nombre en color para ir al canal del autor y ver todos sus videos.</string>
+
+    <!-- Tutorial: Álbumes y Playlists -->
+    <string name="tour_albums_grouping_title">Por álbum o por artista</string>
+    <string name="tour_albums_grouping_body">Cambia cómo se agrupan tus canciones.</string>
+    <string name="tour_albums_first_title">Abrir un álbum</string>
+    <string name="tour_albums_first_body">Toca un álbum para ver sus canciones en el orden del disco y reproducirlo entero.</string>
+    <string name="tour_playlists_new_title">Nueva playlist</string>
+    <string name="tour_playlists_new_body">Crea una lista con su nombre y una foto de portada. Las canciones se añaden desde el menú de cada una.</string>
+    <string name="tour_playlists_first_title">Tus playlists</string>
+    <string name="tour_playlists_first_body">Toca una para reproducirla en orden o en aleatorio, cambiarle el nombre o quitar canciones.</string>
+
+    <!-- Tutorial: reproductor -->
+    <string name="tour_mini_title">Lo que está sonando</string>
+    <string name="tour_mini_body">Pausa o pasa a la siguiente desde aquí. Toca la barra para abrir el reproductor completo.</string>
+    <string name="tour_player_collapse_title">Minimizar</string>
+    <string name="tour_player_collapse_body">Baja el reproductor y sigue usando la app. La música no se para.</string>
+    <string name="tour_player_equalizer_title">Ecualizador</string>
+    <string name="tour_player_equalizer_body">Ajusta los graves y los agudos a tu gusto, usa los estilos de tu teléfono o sube el volumen extra.</string>
+    <string name="tour_player_seek_title">Barra de la canción</string>
+    <string name="tour_player_seek_body">Toca o arrastra para ir a cualquier parte. En las canciones dibuja la onda del sonido.</string>
+    <string name="tour_player_shuffle_title">Aleatorio</string>
+    <string name="tour_player_shuffle_body">Mezcla el orden de la lista. Se enciende en color cuando está activo.</string>
+    <string name="tour_player_controls_title">Controles</string>
+    <string name="tour_player_controls_body">Anterior, reproducir o pausar, y siguiente. También funcionan desde la notificación y los auriculares.</string>
+    <string name="tour_player_repeat_title">Repetir</string>
+    <string name="tour_player_repeat_body">Cada toque cambia el modo: repetir la canción una vez, dos veces o siempre. El número dice cuántas veces quedan.</string>
+    <string name="tour_video_quality_title">Calidad</string>
+    <string name="tour_video_quality_body">Empieza en Automática, según tu conexión. Elige otra si quieres más nitidez o gastar menos datos.</string>
+    <string name="tour_video_floating_title">Ventana flotante</string>
+    <string name="tour_video_floating_body">El video sigue en una ventanita encima de otras apps. También pasa solo al salir de ExoTube.</string>
+    <string name="tour_video_fullscreen_title">Pantalla completa</string>
+    <string name="tour_video_fullscreen_body">Pone el video a lo ancho de toda la pantalla.</string>
+    <string name="tour_video_channel_title">El canal</string>
+    <string name="tour_video_channel_body">Toca el nombre del canal para ver todos sus videos.</string>
+
+    <!-- Tutorial: Ajustes -->
+    <string name="tour_settings_theme_title">Tema de la app</string>
+    <string name="tour_settings_theme_body">Doce combinaciones de colores para toda la app. Se aplican al momento.</string>
+    <string name="tour_settings_filter_title">Filtro de la biblioteca</string>
+    <string name="tour_settings_filter_body">Esconde los audios más cortos que elijas y las notas de voz, para que solo veas canciones.</string>
+    <string name="tour_settings_tutorial_title">Repetir el tutorial</string>
+    <string name="tour_settings_tutorial_body">Si alguna vez olvidas para qué sirve algo, vuelve a ver estas explicaciones desde aquí.</string>
 </resources>

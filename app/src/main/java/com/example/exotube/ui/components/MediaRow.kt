@@ -54,6 +54,8 @@ fun MediaRow(
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
     actions: List<RowAction> = emptyList(),
+    /** Para el botón de opciones (el tutorial lo señala en la primera fila). */
+    menuModifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val subtitle = listOf(
@@ -97,16 +99,16 @@ fun MediaRow(
                     .size(width = 18.dp, height = 16.dp),
             )
         }
-        if (actions.isNotEmpty()) RowMenu(actions)
+        if (actions.isNotEmpty()) RowMenu(actions, menuModifier)
     }
 }
 
 @Composable
-private fun RowMenu(actions: List<RowAction>) {
+private fun RowMenu(actions: List<RowAction>, modifier: Modifier = Modifier) {
     var expanded by remember { mutableStateOf(false) }
     // El Box ancla el menú desplegable al botón.
     Box {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(onClick = { expanded = true }, modifier = modifier) {
             Icon(
                 painter = painterResource(R.drawable.ic_more_vert),
                 contentDescription = stringResource(R.string.more_options),

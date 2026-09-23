@@ -1,6 +1,7 @@
 package com.example.exotube.settings
 
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
@@ -45,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -61,6 +63,8 @@ import com.example.exotube.ui.theme.AppTheme
 import com.example.exotube.ui.theme.ExoTubeTheme
 import com.example.exotube.ui.theme.ThemeGroup
 import com.example.exotube.ui.theme.readableOn
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import kotlin.math.roundToInt
 
 // ---------------------------------------------------------------------------------------------
@@ -76,7 +80,18 @@ fun SettingsRoute(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    SettingsScreen(state, onOpenTheme, onOpenLibraryFilter, onBack, contentPadding)
+    val context = LocalContext.current
+    SettingsScreen(
+        state = state,
+        onOpenTheme = onOpenTheme,
+        onOpenLibraryFilter = onOpenLibraryFilter,
+        onRestartTutorial = {
+            viewModel.onRestartTutorial()
+            Toast.makeText(context, R.string.settings_tutorial_restarted, Toast.LENGTH_LONG).show()
+        },
+        onBack = onBack,
+        contentPadding = contentPadding,
+    )
 }
 
 @Composable
@@ -84,6 +99,7 @@ private fun SettingsScreen(
     state: SettingsUiState,
     onOpenTheme: () -> Unit,
     onOpenLibraryFilter: () -> Unit,
+    onRestartTutorial: () -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -96,6 +112,7 @@ private fun SettingsScreen(
                 summary = stringResource(state.theme.label),
                 onClick = onOpenTheme,
                 trailing = { ThemeDots(state.theme) },
+                modifier = Modifier.tourSpot(TourSpot.SETTINGS_THEME),
             )
         }
         item {
@@ -109,6 +126,16 @@ private fun SettingsScreen(
                     stringResource(R.string.settings_filter_summary, minSeconds)
                 },
                 onClick = onOpenLibraryFilter,
+                modifier = Modifier.tourSpot(TourSpot.SETTINGS_FILTER),
+            )
+        }
+        item {
+            SettingsRow(
+                icon = R.drawable.ic_help,
+                title = stringResource(R.string.settings_tutorial),
+                summary = stringResource(R.string.settings_tutorial_summary),
+                onClick = onRestartTutorial,
+                modifier = Modifier.tourSpot(TourSpot.SETTINGS_TUTORIAL),
             )
         }
         item {
@@ -144,10 +171,11 @@ private fun SettingsRow(
     summary: String,
     onClick: () -> Unit,
     trailing: @Composable () -> Unit = {},
+    modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 16.dp),
@@ -494,7 +522,7 @@ private fun LibraryFilterScreen(
 @Composable
 private fun SettingsScreenPreview() {
     ExoTubeTheme {
-        SettingsScreen(SettingsUiState(theme = AppTheme.SPIDER), {}, {}, {}, PaddingValues())
+        SettingsScreen(SettingsUiState(theme = AppTheme.SPIDER), {}, {}, {}, {}, PaddingValues())
     }
 }
 

@@ -51,6 +51,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.data.library.AudioLibraryPermission
 import com.example.exotube.domain.model.LibraryItem
@@ -138,12 +140,17 @@ fun LibraryScreen(
                 query = state.query,
                 onQueryChange = onQueryChange,
                 hint = stringResource(R.string.library_search_hint),
+                modifier = Modifier.tourSpot(TourSpot.LIBRARY_SEARCH),
             )
         }
-        item { FilterRow(selected = state.filter, onFilterSelected = onFilterSelected) }
+        item {
+            Box(Modifier.tourSpot(TourSpot.LIBRARY_FILTERS)) {
+                FilterRow(selected = state.filter, onFilterSelected = onFilterSelected)
+            }
+        }
         // Solo tiene sentido ofrecerlo mientras se ve audio: los videos nunca salen del teléfono.
         if (!canReadPhoneMusic && state.filter != LibraryFilter.VIDEO) {
-            item { PhoneMusicBanner(onAllow = onAllowPhoneMusic) }
+            item { PhoneMusicBanner(onAllow = onAllowPhoneMusic, modifier = Modifier.tourSpot(TourSpot.LIBRARY_PHONE_MUSIC)) }
         }
 
         when {
@@ -161,6 +168,8 @@ fun LibraryScreen(
                     isCurrent = item.uri == nowPlayingUri,
                     onClick = { onItemClick(index) },
                     isPlaying = isPlaying,
+                    // Solo la primera fila: el tutorial señala su botón de opciones.
+                    menuModifier = Modifier.tourSpot(TourSpot.LIBRARY_ROW_MENU, enabled = index == 0),
                     actions = buildList {
                         add(RowAction(R.string.add_to_playlist, R.drawable.ic_playlist_add) { onAddToPlaylist(item) })
                         // Recortar y cambiar la portada son cosas de canciones: un video no
@@ -185,7 +194,7 @@ private fun LibraryHeader(state: LibraryUiState, onOpenSettings: () -> Unit) {
     // El engranaje de Ajustes, arriba a la derecha como en casi todas las apps.
     Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(end = 8.dp)) {
         LibraryTitle(state, Modifier.weight(1f))
-        IconButton(onClick = onOpenSettings, modifier = Modifier.padding(top = 12.dp)) {
+        IconButton(onClick = onOpenSettings, modifier = Modifier.padding(top = 12.dp).tourSpot(TourSpot.LIBRARY_SETTINGS)) {
             Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_open))
         }
     }
@@ -218,11 +227,11 @@ private fun LibraryTitle(state: LibraryUiState, modifier: Modifier = Modifier) {
 
 /** Invitación a dar el permiso de audio para ver también la música que ya está en el teléfono. */
 @Composable
-private fun PhoneMusicBanner(onAllow: () -> Unit) {
+private fun PhoneMusicBanner(onAllow: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier
+        modifier = modifier
             .padding(horizontal = 20.dp, vertical = 8.dp)
             .fillMaxWidth(),
     ) {

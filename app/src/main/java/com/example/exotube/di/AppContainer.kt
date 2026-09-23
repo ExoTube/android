@@ -43,6 +43,7 @@ import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.domain.repository.RecommendationRepository
 import com.example.exotube.domain.repository.UpdateRepository
 import com.example.exotube.download.MediaStoreSaver
+import com.example.exotube.ui.tour.Tour
 import com.example.exotube.player.AudioEffects
 import com.example.exotube.download.WorkManagerDownloadScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -109,7 +110,7 @@ class AppContainer(context: Context) {
     val audioEffects: AudioEffects by lazy { AudioEffects(appContext) }
 
     /** El tema de colores y el filtro de la biblioteca, que se eligen en Ajustes. */
-    val settings: AppSettings by lazy { AppSettings(appContext) }
+    val settings: AppSettings by lazy { AppSettings(appContext, Tour.allIds) }
 
     /** Todo el audio y video del teléfono, sin filtrar. Lo usan las playlists. */
     val allMedia: LibraryRepository by lazy { MediaStoreLibraryRepository(appContext) }

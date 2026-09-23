@@ -42,6 +42,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaError
 import com.example.exotube.domain.model.OnlineVideo
@@ -128,6 +130,7 @@ fun ExploreScreen(
                 onQueryChange = onQueryChange,
                 hint = stringResource(R.string.explore_search_hint),
                 onSearch = onSearch,
+                modifier = Modifier.tourSpot(TourSpot.EXPLORE_SEARCH),
             )
         }
         item {
@@ -156,12 +159,13 @@ fun ExploreScreen(
             // "Para ti": un bloque por motivo, cada uno con su encabezado explicando de donde
             // sale. Van seguidos en la misma lista, no en carruseles horizontales: aqui lo que
             // se quiere es descubrir, y una lista vertical se lee entera sin tener que arrastrar.
-            is ExploreResults.ForYou -> results.blocks.forEach { block ->
+            is ExploreResults.ForYou -> results.blocks.forEachIndexed { blockIndex, block ->
                 item(key = "motivo-${block.becauseOf}") { BecauseYouListened(block.becauseOf) }
                 items(block.videos, key = { "${block.becauseOf}-${it.id}" }) { video ->
                     OnlineVideoRow(
                         video = video,
                         isResolving = video.id == state.resolvingId,
+                        isTourAnchor = blockIndex == 0 && video == block.videos.first(),
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
                         onOpenChannel = { onOpenChannel(video) },
@@ -180,6 +184,7 @@ fun ExploreScreen(
                     OnlineVideoRow(
                         video = video,
                         isResolving = video.id == state.resolvingId,
+                        isTourAnchor = video == results.videos.first(),
                         onClick = { onVideoSelected(video) },
                         onDownload = { onDownload(video) },
                         onOpenChannel = { onOpenChannel(video) },
@@ -228,6 +233,7 @@ private fun TopicRow(
                 selected = audioOnly,
                 onClick = { onAudioOnlyChange(!audioOnly) },
                 label = { Text(stringResource(R.string.explore_audio_only)) },
+                modifier = Modifier.tourSpot(TourSpot.EXPLORE_DATA_SAVER),
                 leadingIcon = {
                     Icon(painterResource(R.drawable.ic_audio), contentDescription = null, Modifier.size(18.dp))
                 },
@@ -239,6 +245,7 @@ private fun TopicRow(
                 selected = topic == selected,
                 onClick = { onTopicSelected(topic) },
                 label = { Text(stringResource(topic.labelRes)) },
+                modifier = Modifier.tourSpot(TourSpot.EXPLORE_TOPICS, enabled = topic == ExploreTopic.entries.first()),
                 colors = chipColors(),
             )
         }

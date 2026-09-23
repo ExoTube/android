@@ -63,6 +63,8 @@ import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.media3.ui.compose.state.rememberPreviousButtonState
 import androidx.media3.ui.compose.state.rememberProgressStateWithTickInterval
 import androidx.media3.ui.compose.state.rememberShuffleButtonState
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaType
 import com.example.exotube.domain.model.OnlineVideo
@@ -92,7 +94,8 @@ fun MiniPlayer(player: Player, onOpen: () -> Unit, modifier: Modifier = Modifier
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier
             .padding(horizontal = 8.dp, vertical = 8.dp)
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .tourSpot(TourSpot.MINI_PLAYER),
     ) {
         Column {
             Row(
@@ -234,7 +237,7 @@ private fun NowPlayingContent(
             .padding(horizontal = 24.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = onCollapse) {
+            IconButton(onClick = onCollapse, modifier = Modifier.tourSpot(TourSpot.PLAYER_COLLAPSE)) {
                 Icon(painterResource(R.drawable.ic_expand_more), stringResource(R.string.player_collapse))
             }
             Text(
@@ -246,7 +249,7 @@ private fun NowPlayingContent(
             // La ventana flotante solo tiene sentido con imagen; para una canción basta con que
             // el sonido siga, que ya ocurre al salir de la app.
             if (canChooseQuality) {
-                IconButton(onClick = { showQuality = true }) {
+                IconButton(onClick = { showQuality = true }, modifier = Modifier.tourSpot(TourSpot.VIDEO_QUALITY)) {
                     Icon(
                         painter = painterResource(R.drawable.ic_hd),
                         contentDescription = stringResource(R.string.quality_open),
@@ -254,14 +257,14 @@ private fun NowPlayingContent(
                 }
             }
             if (isVideo && onEnterPictureInPicture != null) {
-                IconButton(onClick = onEnterPictureInPicture) {
+                IconButton(onClick = onEnterPictureInPicture, modifier = Modifier.tourSpot(TourSpot.VIDEO_FLOATING)) {
                     Icon(
                         painter = painterResource(R.drawable.ic_picture_in_picture),
                         contentDescription = stringResource(R.string.player_picture_in_picture),
                     )
                 }
             }
-            IconButton(onClick = onOpenEqualizer) {
+            IconButton(onClick = onOpenEqualizer, modifier = Modifier.tourSpot(TourSpot.PLAYER_EQUALIZER)) {
                 Icon(
                     painter = painterResource(R.drawable.ic_tune),
                     contentDescription = stringResource(R.string.equalizer_open),
@@ -307,7 +310,9 @@ private fun NowPlayingContent(
                     .fillMaxWidth()
                     .then(
                         if (openChannel != null) {
-                            Modifier.clickable(onClickLabel = stringResource(R.string.channel_open), onClick = openChannel)
+                            Modifier
+                                .tourSpot(TourSpot.VIDEO_CHANNEL)
+                                .clickable(onClickLabel = stringResource(R.string.channel_open), onClick = openChannel)
                         } else {
                             Modifier
                         },
@@ -317,10 +322,12 @@ private fun NowPlayingContent(
         Spacer(Modifier.height(16.dp))
         // La onda solo tiene sentido con la musica: en un video lo que importa es la imagen, y
         // ademas de un video en linea no hay archivo que leer.
-        if (isVideo) {
-            SeekBar(player)
-        } else {
-            WaveformSeekBar(player, current.mediaItem?.mediaId)
+        Box(Modifier.tourSpot(TourSpot.PLAYER_SEEK)) {
+            if (isVideo) {
+                SeekBar(player)
+            } else {
+                WaveformSeekBar(player, current.mediaItem?.mediaId)
+            }
         }
         Spacer(Modifier.height(8.dp))
         PlaybackControls(player, playPause, repeatPlan, onCycleRepeat)
@@ -364,7 +371,7 @@ private fun VideoFrame(player: Player, isLoadingStream: Boolean, onEnterFullscre
         }
         IconButton(
             onClick = onEnterFullscreen,
-            modifier = Modifier.align(Alignment.BottomEnd),
+            modifier = Modifier.align(Alignment.BottomEnd).tourSpot(TourSpot.VIDEO_FULLSCREEN),
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_fullscreen),
@@ -487,11 +494,11 @@ private fun PlaybackControls(
         FilledIconButton(
             onClick = playPause::onClick,
             enabled = playPause.isEnabled,
+            modifier = Modifier.size(72.dp).tourSpot(TourSpot.PLAYER_CONTROLS),
             colors = IconButtonDefaults.filledIconButtonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ),
-            modifier = Modifier.size(72.dp),
         ) {
             PlayPauseIcon(playPause, modifier = Modifier.size(38.dp))
         }
@@ -506,7 +513,7 @@ private fun PlaybackControls(
 @Composable
 private fun ShuffleButton(player: Player) {
     val shuffle = rememberShuffleButtonState(player)
-    IconButton(onClick = shuffle::onClick, enabled = shuffle.isEnabled) {
+    IconButton(onClick = shuffle::onClick, enabled = shuffle.isEnabled, modifier = Modifier.tourSpot(TourSpot.PLAYER_SHUFFLE)) {
         Icon(
             painter = painterResource(R.drawable.ic_shuffle),
             contentDescription = stringResource(
@@ -524,7 +531,7 @@ private fun ShuffleButton(player: Player) {
 @Composable
 private fun RepeatButton(plan: RepeatPlan, onClick: () -> Unit) {
     val tint = activeTint(plan != RepeatPlan.OFF)
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, modifier = Modifier.tourSpot(TourSpot.PLAYER_REPEAT)) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(R.drawable.ic_repeat),

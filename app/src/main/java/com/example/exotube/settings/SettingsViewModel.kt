@@ -46,6 +46,8 @@ class SettingsViewModel(
 
     fun onVisibilityChange(visibility: LibraryVisibility) = settings.setLibraryVisibility(visibility)
 
+    fun onRestartTutorial() = settings.resetTours()
+
     companion object {
         val Factory: ViewModelProvider.Factory = viewModelFactory {
             initializer {

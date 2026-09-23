@@ -33,6 +33,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.domain.model.LibraryItem
 import com.example.exotube.domain.model.MediaType
@@ -60,7 +62,9 @@ fun AlbumsScreen(
         // Las cabeceras ocupan las dos columnas; las carátulas, una cada una.
         item(span = { GridItemSpan(maxLineSpan) }) { AlbumsHeader(state) }
         item(span = { GridItemSpan(maxLineSpan) }) {
-            GroupingRow(selected = state.grouping, onGroupingSelected = onGroupingSelected)
+            Box(Modifier.tourSpot(TourSpot.ALBUMS_GROUPING)) {
+                GroupingRow(selected = state.grouping, onGroupingSelected = onGroupingSelected)
+            }
         }
 
         when {
@@ -71,7 +75,11 @@ fun AlbumsScreen(
             }
             state.albums.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) { EmptyAlbums() }
             else -> items(state.albums, key = { it.id.ifEmpty { UNTAGGED_KEY } }) { album ->
-                AlbumCard(album, onClick = { onOpenAlbum(album) })
+                AlbumCard(
+                    album,
+                    onClick = { onOpenAlbum(album) },
+                    modifier = Modifier.tourSpot(TourSpot.ALBUMS_FIRST, enabled = album == state.albums.first()),
+                )
             }
         }
     }
@@ -112,8 +120,8 @@ private fun GroupingRow(selected: AlbumGrouping, onGroupingSelected: (AlbumGroup
 }
 
 @Composable
-private fun AlbumCard(album: Album, onClick: () -> Unit) {
-    Column(Modifier.clickable(onClick = onClick)) {
+private fun AlbumCard(album: Album, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.clickable(onClick = onClick)) {
         MediaArtwork(
             uri = album.coverUri,
             type = MediaType.AUDIO,

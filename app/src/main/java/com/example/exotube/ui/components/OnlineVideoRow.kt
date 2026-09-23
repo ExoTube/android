@@ -29,6 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.ui.formatCompactCount
@@ -52,10 +54,13 @@ fun OnlineVideoRow(
     modifier: Modifier = Modifier,
     /** null donde no tiene sentido (por ejemplo, dentro del propio canal). */
     onOpenChannel: (() -> Unit)? = null,
+    /** La primera fila de Explorar: el tutorial señala la fila, su descarga y su canal. */
+    isTourAnchor: Boolean = false,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .tourSpot(TourSpot.EXPLORE_VIDEO, enabled = isTourAnchor)
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(start = 20.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
@@ -70,7 +75,7 @@ fun OnlineVideoRow(
                 overflow = TextOverflow.Ellipsis,
             )
             if (onOpenChannel != null && video.channel != null) {
-                ChannelLink(video, onOpenChannel)
+                ChannelLink(video, onOpenChannel, Modifier.tourSpot(TourSpot.EXPLORE_CHANNEL, enabled = isTourAnchor))
             } else {
                 video.subtitle()?.let {
                     Text(
@@ -83,7 +88,7 @@ fun OnlineVideoRow(
                 }
             }
         }
-        IconButton(onClick = onDownload) {
+        IconButton(onClick = onDownload, modifier = Modifier.tourSpot(TourSpot.EXPLORE_DOWNLOAD, enabled = isTourAnchor)) {
             Icon(
                 painter = painterResource(R.drawable.ic_download),
                 contentDescription = stringResource(R.string.explore_download),
@@ -142,8 +147,8 @@ private fun Thumbnail(video: OnlineVideo, isResolving: Boolean, modifier: Modifi
  * una sola línea de texto pequeño sería difícil de acertar.
  */
 @Composable
-private fun ChannelLink(video: OnlineVideo, onOpenChannel: () -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun ChannelLink(video: OnlineVideo, onOpenChannel: () -> Unit, modifier: Modifier = Modifier) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Text(
             text = video.channel.orEmpty(),
             style = MaterialTheme.typography.bodySmall,

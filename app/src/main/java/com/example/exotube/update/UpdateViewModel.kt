@@ -1,6 +1,5 @@
 package com.example.exotube.update
 
-import android.content.pm.PackageManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -11,6 +10,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.example.exotube.BuildConfig
 import com.example.exotube.ExoTubeApp
+import com.example.exotube.data.settings.hasBeenUpdated
 import com.example.exotube.data.update.ApkDownloadWorker
 import com.example.exotube.data.update.ApkInstaller
 import com.example.exotube.data.update.UpdateSettings
@@ -142,17 +142,4 @@ class UpdateViewModel(
             }
         }
     }
-}
-
-/**
- * ¿Esta app se instaló de cero o viene de una versión anterior?
- *
- * Android guarda las dos fechas; si no coinciden, es que en algún momento se actualizó. Es la
- * única forma de saberlo para quien viene de la 1.1, que no dejaba ninguna pista guardada.
- */
-private fun ExoTubeApp.hasBeenUpdated(): Boolean = try {
-    val info = packageManager.getPackageInfo(packageName, 0)
-    info.lastUpdateTime > info.firstInstallTime
-} catch (_: PackageManager.NameNotFoundException) {
-    false // no puede pasar (nos preguntamos por nosotros mismos), pero no vale la pena arriesgar
 }

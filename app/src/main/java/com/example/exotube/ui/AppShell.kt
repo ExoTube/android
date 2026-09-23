@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.common.MediaMetadata
 import androidx.media3.ui.compose.state.rememberCurrentMediaItemState
 import androidx.media3.ui.compose.state.rememberPlayPauseButtonState
 import androidx.navigation.NavDestination
@@ -52,6 +54,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.exotube.ui.tour.Tour
+import com.example.exotube.ui.tour.TourOverlay
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourToShow
+import com.example.exotube.ui.tour.tourSpot
+import com.example.exotube.ExoTubeApp
 import com.example.exotube.R
 import com.example.exotube.album.AlbumDetailScreen
 import com.example.exotube.album.AlbumsScreen
@@ -93,11 +101,18 @@ import com.example.exotube.settings.ThemeSettingsRoute
 import com.example.exotube.domain.model.OnlineVideo
 
 /** Pestañas de la barra inferior. */
-private enum class TopLevelTab(val destination: Any, @StringRes val label: Int, @DrawableRes val icon: Int) {
-    LIBRARY(LibraryDestination, R.string.nav_library, R.drawable.ic_library_music),
-    EXPLORE(ExploreDestination, R.string.nav_explore, R.drawable.ic_explore),
-    ALBUMS(AlbumsDestination, R.string.nav_albums, R.drawable.ic_album),
-    PLAYLISTS(PlaylistsDestination, R.string.nav_playlists, R.drawable.ic_queue_music),
+private enum class TopLevelTab(
+    val destination: Any,
+    @StringRes val label: Int,
+    @DrawableRes val icon: Int,
+    val spot: TourSpot,
+    /** El tutorial de esta pestaña, que sale la primera vez que se entra. */
+    val tour: Tour,
+) {
+    LIBRARY(LibraryDestination, R.string.nav_library, R.drawable.ic_library_music, TourSpot.TAB_LIBRARY, Tour.LIBRARY),
+    EXPLORE(ExploreDestination, R.string.nav_explore, R.drawable.ic_explore, TourSpot.TAB_EXPLORE, Tour.EXPLORE),
+    ALBUMS(AlbumsDestination, R.string.nav_albums, R.drawable.ic_album, TourSpot.TAB_ALBUMS, Tour.ALBUMS),
+    PLAYLISTS(PlaylistsDestination, R.string.nav_playlists, R.drawable.ic_queue_music, TourSpot.TAB_PLAYLISTS, Tour.PLAYLISTS),
 }
 
 /**
@@ -143,6 +158,13 @@ fun AppShell(
     var newPlaylistRequest by remember { mutableStateOf<NewPlaylistRequest?>(null) }
 
     val isTopLevel = currentDestination == null || TopLevelTab.entries.any { currentDestination.isOn(it) }
+
+    // El tutorial: qué partes se han visto ya, y si lo que suena ahora es un video.
+    val appSettings = (LocalContext.current.applicationContext as ExoTubeApp).container.settings
+    val seenTours by appSettings.seenTours.collectAsStateWithLifecycle()
+    val isVideoPlaying = player?.let {
+        rememberCurrentMediaItemState(it).mediaMetadata.mediaType == MediaMetadata.MEDIA_TYPE_VIDEO
+    } == true
 
     BackHandler(enabled = showNowPlaying) { showNowPlaying = false }
 
@@ -293,7 +315,7 @@ fun AppShell(
             }
         }
 
-        // "Reproduciendo" sube desde abajo, por encima de todo.
+        // "Reproduciendo" sube desde abajo, por encima de todo (salvo del tutorial).
         AnimatedVisibility(
             visible = showNowPlaying && player != null,
             enter = slideInVertically { it },
@@ -313,6 +335,25 @@ fun AppShell(
                     onOpenChannel = openChannel,
                 )
             }
+        }
+
+        val screenTour = when {
+            currentDestination == null -> Tour.LIBRARY
+            currentDestination.hasRoute(SettingsDestination::class) -> Tour.SETTINGS
+            else -> TopLevelTab.entries.firstOrNull { currentDestination.isOn(it) }?.tour
+        }
+        val tour = tourToShow(
+            seen = seenTours,
+            screenTour = screenTour,
+            isPlayerOpen = showNowPlaying && player != null,
+            isVideoPlaying = isVideoPlaying,
+            hasMiniPlayer = nowPlayingUri != null,
+            isBusy = isFullscreen || showEqualizer || itemToTrim != null || itemToRename != null ||
+                itemToDelete != null || itemForPlaylist != null || newPlaylistRequest != null || workingMessage != null,
+        )
+        // key: al cambiar de recorrido, el anterior se descarta entero y el nuevo empieza de cero.
+        tour?.let { current ->
+            key(current) { TourOverlay(current, onFinish = { appSettings.markTourSeen(current.id) }) }
         }
     }
 
@@ -470,6 +511,7 @@ private fun BottomTabs(currentDestination: NavDestination?, onSelect: (TopLevelT
                 onClick = { onSelect(tab) },
                 icon = { Icon(painterResource(tab.icon), contentDescription = null) },
                 label = { Text(stringResource(tab.label)) },
+                modifier = Modifier.tourSpot(tab.spot),
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.onPrimary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,

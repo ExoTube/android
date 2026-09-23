@@ -33,6 +33,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.example.exotube.ui.tour.TourSpot
+import com.example.exotube.ui.tour.tourSpot
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaType
 import com.example.exotube.domain.model.Playlist
@@ -67,6 +69,7 @@ fun PlaylistsScreen(
                 title = stringResource(R.string.playlist_new),
                 subtitle = null,
                 onClick = onCreatePlaylist,
+                modifier = Modifier.tourSpot(TourSpot.PLAYLISTS_NEW),
             )
         }
         when {
@@ -82,6 +85,7 @@ fun PlaylistsScreen(
                     title = playlist.name,
                     subtitle = pluralStringResource(R.plurals.playlist_song_count, playlist.itemCount, playlist.itemCount),
                     onClick = { onOpenPlaylist(playlist.id) },
+                    modifier = Modifier.tourSpot(TourSpot.PLAYLISTS_FIRST, enabled = playlist == state.playlists.first()),
                 )
             }
         }
@@ -94,10 +98,11 @@ private fun PlaylistRowLayout(
     title: String,
     subtitle: String?,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 8.dp),
