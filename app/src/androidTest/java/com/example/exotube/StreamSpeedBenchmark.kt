@@ -5,10 +5,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.exotube.data.network.Ipv4FirstDns
 import com.example.exotube.data.newpipe.NewPipeChannels
+import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.data.newpipe.NewPipeSearch
 import com.example.exotube.data.newpipe.NewPipeStreamResolver
+import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
 import com.example.exotube.data.ytdlp.YtDlpEngine
+import com.example.exotube.domain.model.DownloadRequest
+import com.example.exotube.domain.model.MediaInfo
 import com.example.exotube.domain.model.OnlineChannel
 import com.example.exotube.domain.model.OnlineVideo
 import com.example.exotube.domain.model.StreamSource
@@ -19,6 +23,7 @@ import okhttp3.Request
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper
+import java.io.File
 import kotlin.system.measureTimeMillis
 
 /**
@@ -74,6 +79,60 @@ class StreamSpeedBenchmark {
 
         log("RESUMEN yt-dlp  : ${ytDlpTimes.summary()}")
         log("RESUMEN NewPipe : ${newPipeTimes.summary()} (el primero incluye preparar la librería)")
+    }
+
+    /**
+     * Cuánto tarda la hoja de descarga en reconocer un enlace, con yt-dlp y con NewPipe. Y lo
+     * importante: que yt-dlp entienda las opciones que arma NewPipe. Para eso se le pide a yt-dlp
+     * que elija el formato de cada opción sin descargar (--simulate), y se baja de verdad la más
+     * pequeña para ver que el archivo sale.
+     */
+    @Test
+    fun medirEnlaceDeDescarga() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val slow = MediaExtractorManager(engine)
+        val quick = MediaExtractorManager(engine, NewPipeMediaInfo(client))
+        val slowTimes = mutableListOf<Long>()
+        val quickTimes = mutableListOf<Long>()
+
+        ids.forEachIndexed { index, id ->
+            val url = "https://www.youtube.com/watch?v=$id"
+            val order = if (index % 2 == 0) listOf(quick, slow) else listOf(slow, quick)
+            for (manager in order) {
+                var info: MediaInfo? = null
+                val ms = measureTimeMillis { info = manager.fetchMediaInfo(url).getOrNull() }
+                val name = if (manager === quick) "NewPipe" else "yt-dlp "
+                (if (manager === quick) quickTimes else slowTimes) += ms
+                log("$id $name ${ms} ms  ${info?.formats?.joinToString { "${it.label}:${it.sizeBytes?.div(1_000_000)}MB" } ?: "FALLO"}")
+            }
+        }
+        log("RESUMEN hoja yt-dlp  : ${slowTimes.summary()}")
+        log("RESUMEN hoja NewPipe : ${quickTimes.summary()} (el primero incluye preparar la librería)")
+
+        // ¿yt-dlp entiende cada opción de NewPipe? Se le pregunta qué formatos bajaría.
+        val url = "https://www.youtube.com/watch?v=${ids.first()}"
+        val info = quick.fetchMediaInfo(url).getOrThrow()
+        for (format in info.formats) {
+            val chosen = runCatching {
+                engine.run(
+                    engine.newRequest(url).addOption("-f", format.formatId).addOption("--no-playlist")
+                        .addOption("--simulate").addOption("--print", "%(format_id)s %(height)sp"),
+                ).out.trim()
+            }.getOrElse { "FALLO ${it.message?.take(200)}" }
+            log("  ${format.label.padEnd(8)} ${format.formatId}  ->  yt-dlp elige: $chosen")
+        }
+
+        // Y una descarga de verdad, la más pequeña, para ver que el archivo llega entero.
+        val smallest = info.videoFormats.last()
+        val dir = File(context.cacheDir, "prueba-descarga").apply { deleteRecursively() }
+        val ms = measureTimeMillis {
+            val file = runCatching {
+                quick.download(DownloadRequest(url, info.title, info.platform, smallest), dir) {}
+            }.getOrElse { log("  descarga FALLO $it"); null }
+            file?.let { log("  descarga ${smallest.label}: ${it.name} ${it.length() / 1_000} KB") }
+        }
+        log("  la descarga tardó $ms ms")
+        dir.deleteRecursively()
     }
 
     /** Cuánto tarda una búsqueda con cada motor, y abrir un canal con NewPipe. */

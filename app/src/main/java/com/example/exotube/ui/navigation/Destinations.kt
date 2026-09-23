@@ -30,3 +30,13 @@ data class PlaylistDestination(val playlistId: Long)
  */
 @Serializable
 data class ChannelDestination(val channelUrl: String?, val videoUrl: String?, val name: String)
+
+/** Ajustes, con sus dos apartados: el tema de colores y el filtro de la biblioteca. */
+@Serializable
+data object SettingsDestination
+
+@Serializable
+data object ThemeSettingsDestination
+
+@Serializable
+data object LibraryFilterDestination

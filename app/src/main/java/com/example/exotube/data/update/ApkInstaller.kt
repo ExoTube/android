@@ -2,10 +2,14 @@ package com.example.exotube.data.update
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import java.io.File
+import java.security.MessageDigest
 
 /**
  * Entrega el APK descargado al instalador de Android.
@@ -51,6 +55,43 @@ class ApkInstaller(context: Context) {
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
     }
 
+    /**
+     * true solo si [apk] es ExoTube y está firmado con la MISMA llave que la app instalada.
+     *
+     * La firma es lo que de verdad protege al usuario de una copia con virus. Cualquiera puede
+     * bajarse el código de ExoTube, cambiarlo y compilarlo, pero no puede firmarlo con nuestra
+     * llave (el archivo exotube.jks, que nunca sale de este ordenador). Android ya se niega a
+     * instalar una actualización con otra firma; aquí lo comprobamos ANTES, para no enseñar
+     * siquiera el botón de instalar si alguien llegara a colar un APK falso en GitHub.
+     */
+    fun isSignedLikeThisApp(apk: File): Boolean {
+        val packageManager = appContext.packageManager
+        val downloaded = packageManager.getPackageArchiveInfo(apk.path, signatureFlags) ?: return false
+        if (downloaded.packageName != appContext.packageName) return false
+        val installed = packageManager.getPackageInfo(appContext.packageName, signatureFlags)
+        return sameSigners(signerDigests(downloaded), signerDigests(installed))
+    }
+
+    private val signatureFlags: Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION") PackageManager.GET_SIGNATURES
+        }
+
+    /** La huella SHA-256 de cada certificado que firma el paquete. */
+    private fun signerDigests(info: PackageInfo): Set<String> {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners
+        } else {
+            @Suppress("DEPRECATION") info.signatures
+        }
+        return signatures.orEmpty().map { sha256(it.toByteArray()) }.toSet()
+    }
+
+    private fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+
     /** false si el usuario todavía no ha autorizado a ExoTube a instalar aplicaciones. */
     fun canInstall(): Boolean = appContext.packageManager.canRequestPackageInstalls()
 
@@ -64,3 +105,10 @@ class ApkInstaller(context: Context) {
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }
+
+/**
+ * Si dos paquetes los firma la misma gente: exactamente los mismos certificados. Un conjunto
+ * vacío (no se pudo leer la firma) nunca vale: ante la duda, no se instala.
+ */
+internal fun sameSigners(downloaded: Set<String>, installed: Set<String>): Boolean =
+    downloaded.isNotEmpty() && downloaded == installed

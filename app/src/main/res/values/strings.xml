@@ -239,7 +239,7 @@
     <string name="whats_new_title">Novedades de la %1$s</string>
     <string name="whats_new_subtitle">Esto es lo que se ha añadido</string>
     <string name="whats_new_continue">Empezar</string>
-    <string name="whats_new_notes">VIDEOS EN LÍNEA\n• Empiezan mucho antes: el video llega en 1 o 2 segundos, antes tardaba de 4 a 7.\n• Ya no se paran a mitad ni hace falta adelantarlos para que sigan.\n• Búsquedas unas 5 veces más rápidas y sin límite: al bajar salen más resultados.\n• Toca el nombre del canal para ver su página con todos sus videos.\n\nWIDGET\n• Ahora ocupa 3x3 casillas. Si ya lo tenías puesto, quítalo y vuelve a añadirlo.</string>
+    <string name="whats_new_notes">DESCARGAS\n• Los enlaces de YouTube se reconocen en 1 o 2 segundos. Antes tardaban de 5 a 25.\n\nAJUSTES (el engranaje de arriba en Biblioteca)\n• Filtro por duración: esconde notas de voz, efectos y audios cortos. Viene en 30 segundos; ponlo en 0 para verlo todo.\n• 12 temas de colores: Arácnido, Bajo el mar, Rock, Terror, Neón, Gamer, Chat y más.\n\nSEGURIDAD\n• Antes de instalar una actualización, ExoTube comprueba que lleve su firma oficial.</string>
 
 
     <!-- Widget del tocadiscos en la pantalla de inicio -->
@@ -262,4 +262,65 @@
     <string name="channel_verified">Canal verificado</string>
     <string name="channel_videos">Videos</string>
     <string name="channel_empty">Este canal todavía no tiene videos.</string>
+
+    <!-- Ajustes -->
+    <string name="settings_open">Ajustes</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_theme">Tema de la app</string>
+    <string name="settings_library_filter">Filtro de la biblioteca</string>
+    <string name="settings_filter_summary_off">Se ven todos los audios del teléfono</string>
+    <string name="settings_filter_summary">Oculta los audios de menos de %1$d s</string>
+    <string name="settings_version">ExoTube %1$s · %2$s</string>
+    <string name="phone_kind_arm64">teléfono de 64 bits (ARM64)</string>
+    <string name="phone_kind_arm32">teléfono de 32 bits (armeabi-v7a)</string>
+    <string name="phone_kind_intel">equipo Intel (x86_64)</string>
+    <string name="phone_kind_unknown">procesador poco común</string>
+
+    <!-- Ajustes: filtro de la biblioteca -->
+    <string name="filter_title">Filtro</string>
+    <string name="filter_by_duration">Por duración</string>
+    <string name="filter_by_duration_body">Los audios de menos de %1$d segundos no aparecen en la biblioteca.</string>
+    <string name="filter_by_duration_off">Se ven todos los audios, duren lo que duren.</string>
+    <string name="filter_min">0</string>
+    <string name="filter_max">%1$d</string>
+    <string name="filter_voice_notes">Ocultar notas de voz</string>
+    <string name="filter_voice_notes_body">Las notas de voz de WhatsApp y las grabaciones del teléfono no aparecen en la biblioteca.</string>
+    <string name="filter_downloads_note">Se filtran los audios del teléfono y también los que descargas con ExoTube. Los videos se ven siempre, y las playlists no pierden nada: el archivo sigue en el teléfono.</string>
+    <plurals name="filter_hidden_count">
+        <item quantity="one">Ahora se oculta %1$d audio.</item>
+        <item quantity="other">Ahora se ocultan %1$d audios.</item>
+    </plurals>
+
+    <!-- Ajustes: temas de colores -->
+    <string name="theme_title">Tema</string>
+    <string name="theme_intro">Cambia los colores de toda la app. Se aplica al momento.</string>
+    <string name="theme_selected">Tema elegido</string>
+    <string name="theme_group_classic">Clásicos</string>
+    <string name="theme_group_cartoons">Dibujos</string>
+    <string name="theme_group_music">Música</string>
+    <string name="theme_group_social">Redes</string>
+    <string name="theme_classic">ExoTube</string>
+    <string name="theme_classic_hint">Verde y negro</string>
+    <string name="theme_midnight">Medianoche</string>
+    <string name="theme_midnight_hint">Azul noche</string>
+    <string name="theme_spider">Arácnido</string>
+    <string name="theme_spider_hint">Rojo y azul de superhéroe</string>
+    <string name="theme_undersea">Bajo el mar</string>
+    <string name="theme_undersea_hint">Amarillo esponja y mar</string>
+    <string name="theme_candy">Caramelo</string>
+    <string name="theme_candy_hint">Rosa, celeste y limón</string>
+    <string name="theme_rock">Rock</string>
+    <string name="theme_rock_hint">Negro, oro y rosas rojas</string>
+    <string name="theme_horror">Terror</string>
+    <string name="theme_horror_hint">Rojo sangre y morado</string>
+    <string name="theme_neon">Neón</string>
+    <string name="theme_neon_hint">Rosa y cian de los 80</string>
+    <string name="theme_selfie">Selfie</string>
+    <string name="theme_selfie_hint">Degradado rosa y naranja</string>
+    <string name="theme_gamer">Gamer</string>
+    <string name="theme_gamer_hint">Morado azulado</string>
+    <string name="theme_wall">Muro</string>
+    <string name="theme_wall_hint">Azul de red social</string>
+    <string name="theme_chat">Chat</string>
+    <string name="theme_chat_hint">Verde de mensajería</string>
 </resources>

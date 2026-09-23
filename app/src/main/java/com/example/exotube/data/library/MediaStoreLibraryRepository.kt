@@ -11,6 +11,7 @@ import android.os.Looper
 import android.provider.MediaStore
 import com.example.exotube.domain.model.LibraryItem
 import com.example.exotube.domain.model.MediaType
+import com.example.exotube.domain.model.looksLikeVoiceNote
 import com.example.exotube.domain.repository.LibraryRepository
 import com.example.exotube.download.MediaFolders
 import kotlinx.coroutines.Dispatchers
@@ -114,6 +115,7 @@ class MediaStoreLibraryRepository(context: Context) : LibraryRepository {
                         folderName = folderNameFrom(cursor.getString(pathIndex), usesRelativePath),
                     ),
                     trackNumber = cursor.trackNumber(trackIndex),
+                    isVoiceNote = type == MediaType.AUDIO && looksLikeVoiceNote(cursor.getString(pathIndex)),
                 )
             }
         }

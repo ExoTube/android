@@ -1,6 +1,7 @@
 package com.example.exotube.data.ytdlp
 
 import android.util.Log
+import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.domain.model.DownloadProgress
 import com.example.exotube.domain.model.DownloadRequest
 import com.example.exotube.domain.model.MediaInfo
@@ -10,6 +11,7 @@ import com.example.exotube.domain.repository.MediaRepository
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.IOException
 import kotlin.coroutines.cancellation.CancellationException
@@ -20,9 +22,34 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * Quien arranca y ejecuta yt-dlp es [YtDlpEngine]; aquí solo se decide QUÉ pedirle.
  */
-class MediaExtractorManager(private val engine: YtDlpEngine) : MediaRepository, MediaDownloader {
+class MediaExtractorManager(
+    private val engine: YtDlpEngine,
+    /** Reconoce al momento los enlaces de YouTube; sin él (o si falla) se usa yt-dlp. */
+    private val quickInfo: NewPipeMediaInfo? = null,
+) : MediaRepository, MediaDownloader {
 
-    override suspend fun fetchMediaInfo(url: String): Result<MediaInfo> = try {
+    override suspend fun fetchMediaInfo(url: String): Result<MediaInfo> {
+        quickMediaInfo(url)?.let { return Result.success(it) }
+        return slowMediaInfo(url)
+    }
+
+    /**
+     * El camino rápido, solo para YouTube. Cualquier problema (un video raro, un cambio de
+     * YouTube, una red lenta) no se enseña: se devuelve null y lo intenta yt-dlp, como siempre.
+     */
+    private suspend fun quickMediaInfo(url: String): MediaInfo? {
+        val quick = quickInfo ?: return null
+        return try {
+            withTimeoutOrNull(QUICK_TIMEOUT_MS) { quick.fetch(url) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "NewPipe no reconoció el enlace; se prueba con yt-dlp", e)
+            null
+        }
+    }
+
+    private suspend fun slowMediaInfo(url: String): Result<MediaInfo> = try {
         val json = engine.run(infoRequest(url)).out
         // Parsear JSON grande es trabajo de CPU: Dispatchers.Default.
         val media = withContext(Dispatchers.Default) {
@@ -91,5 +118,8 @@ class MediaExtractorManager(private val engine: YtDlpEngine) : MediaRepository, 
 
     private companion object {
         const val TAG = "MediaExtractor"
+
+        /** Lo normal son 1 o 2 s; si pasa de aquí, algo va mal y es mejor probar con yt-dlp. */
+        const val QUICK_TIMEOUT_MS = 8_000L
     }
 }

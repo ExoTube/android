@@ -21,4 +21,6 @@ data class LibraryItem(
     val album: String? = null,
     /** Número de pista dentro del álbum, para poder ordenarlo como en el disco original. */
     val trackNumber: Int? = null,
+    /** Nota de voz o grabación (por su carpeta): el filtro de la biblioteca puede esconderla. */
+    val isVoiceNote: Boolean = false,
 )

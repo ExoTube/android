@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
@@ -22,6 +23,7 @@ import com.example.exotube.album.AlbumsViewModel
 import com.example.exotube.player.PlayerViewModel
 import com.example.exotube.playlist.PlaylistsViewModel
 import com.example.exotube.ui.AppShell
+import com.example.exotube.ui.theme.AppTheme
 import com.example.exotube.ui.theme.ExoTubeTheme
 import kotlinx.coroutines.launch
 
@@ -49,7 +51,9 @@ class MainActivity : ComponentActivity() {
         )
         watchPlayerForPictureInPicture()
         setContent {
-            ExoTubeTheme {
+            // El tema elegido en Ajustes. Al cambiarlo, la app entera se vuelve a pintar al momento.
+            val themeId by (application as ExoTubeApp).container.settings.themeId.collectAsStateWithLifecycle()
+            ExoTubeTheme(AppTheme.fromId(themeId)) {
                 AppShell(
                     playerViewModel = playerViewModel,
                     playlistsViewModel = playlistsViewModel,

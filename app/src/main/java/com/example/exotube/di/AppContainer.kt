@@ -8,14 +8,17 @@ import com.example.exotube.data.audio.FFmpegAudioEditor
 import com.example.exotube.data.audio.FFmpegRunner
 import com.example.exotube.data.audio.WaveformReader
 import com.example.exotube.data.library.ArtworkCache
+import com.example.exotube.data.library.FilteredLibraryRepository
 import com.example.exotube.data.library.MediaStoreDeleter
 import com.example.exotube.data.library.MediaStoreLibraryRepository
 import com.example.exotube.data.network.ConnectionInfo
 import com.example.exotube.data.network.StreamHttpClient
 import com.example.exotube.data.newpipe.NewPipeChannels
+import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.data.newpipe.NewPipeSearch
 import com.example.exotube.data.newpipe.NewPipeStreamResolver
 import com.example.exotube.data.playlist.ExoTubeDatabase
+import com.example.exotube.data.settings.AppSettings
 import com.example.exotube.data.playlist.PlaylistCoverStore
 import com.example.exotube.data.playlist.RoomPlaylistRepository
 import com.example.exotube.data.update.ApkInstaller
@@ -59,7 +62,8 @@ class AppContainer(context: Context) {
     /** El motor yt-dlp, compartido por las descargas y por la pestaña Explorar. */
     val ytDlpEngine = YtDlpEngine(appContext)
 
-    private val mediaExtractor = MediaExtractorManager(ytDlpEngine)
+    /** Descargas con yt-dlp; los enlaces de YouTube se reconocen antes con NewPipe. */
+    private val mediaExtractor by lazy { MediaExtractorManager(ytDlpEngine, NewPipeMediaInfo(streamHttpClient)) }
 
     // Para diseñar la UI sin red ni yt-dlp, cámbialo por FakeMediaRepository().
     val mediaRepository: MediaRepository get() = mediaExtractor
@@ -94,7 +98,16 @@ class AppContainer(context: Context) {
     /** Compartido por el servicio de reproducción (que lo aplica) y la pantalla del ecualizador. */
     val audioEffects: AudioEffects by lazy { AudioEffects(appContext) }
 
-    val libraryRepository: LibraryRepository by lazy { MediaStoreLibraryRepository(appContext) }
+    /** El tema de colores y el filtro de la biblioteca, que se eligen en Ajustes. */
+    val settings: AppSettings by lazy { AppSettings(appContext) }
+
+    /** Todo el audio y video del teléfono, sin filtrar. Lo usan las playlists. */
+    val allMedia: LibraryRepository by lazy { MediaStoreLibraryRepository(appContext) }
+
+    /** La biblioteca y los álbumes: sin las notas de voz ni los audios cortos que esconde el filtro. */
+    val libraryRepository: LibraryRepository by lazy {
+        FilteredLibraryRepository(allMedia, settings.libraryVisibility)
+    }
 
     /** Calcula la forma de onda que dibuja la barra del reproductor. Guarda las últimas. */
     val waveformReader: WaveformReader by lazy { WaveformReader(appContext) }
@@ -127,7 +140,7 @@ class AppContainer(context: Context) {
     }
 
     val playlistRepository: PlaylistRepository by lazy {
-        RoomPlaylistRepository(database.playlistDao(), libraryRepository, PlaylistCoverStore(appContext))
+        RoomPlaylistRepository(database.playlistDao(), allMedia, PlaylistCoverStore(appContext))
     }
 
     /** Borra descargas del teléfono y las olvida en playlists e historial. */

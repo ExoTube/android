@@ -100,7 +100,7 @@ internal fun SearchHit.toOnlineVideo(): OnlineVideo? {
  * La miniatura más grande que no pase de [MAX_THUMBNAIL_WIDTH], igual que con yt-dlp: en una
  * fila de lista no se nota más y así no se gastan datos en una imagen enorme.
  */
-private fun bestThumbnail(thumbnails: List<Pair<String, Int>>): String? {
+internal fun bestThumbnail(thumbnails: List<Pair<String, Int>>): String? {
     val usable = thumbnails.filter { it.first.isNotBlank() }
     return (usable.filter { it.second in 1..MAX_THUMBNAIL_WIDTH }.maxByOrNull { it.second } ?: usable.firstOrNull())
         ?.first

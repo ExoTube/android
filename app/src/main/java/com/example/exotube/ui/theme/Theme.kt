@@ -6,10 +6,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 /**
- * Esquema único y oscuro. No usamos "dynamic color" (Android 12+): tomaría los colores del
- * fondo de pantalla del usuario y la app perdería su identidad verde y negra.
+ * El tema de siempre, verde y negro, ajustado a mano. No usamos "dynamic color" (Android 12+):
+ * tomaría los colores del fondo de pantalla del usuario y la app perdería su identidad. Quien
+ * quiera otros colores los elige en Ajustes (ver [AppTheme]).
  */
-private val ExoTubeColors = darkColorScheme(
+internal val ClassicColors = darkColorScheme(
     primary = ExoGreen,
     onPrimary = ExoInk,
     primaryContainer = ExoGreenDeep,
@@ -43,10 +44,11 @@ private val ExoTubeColors = darkColorScheme(
     scrim = ExoBlack,
 )
 
+/** [theme]: el elegido en Ajustes. Las vistas previas de Android Studio usan el clásico. */
 @Composable
-fun ExoTubeTheme(content: @Composable () -> Unit) {
+fun ExoTubeTheme(theme: AppTheme = AppTheme.CLASSIC, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = ExoTubeColors,
+        colorScheme = theme.colorScheme,
         typography = Typography,
         content = content,
     )

@@ -49,6 +49,8 @@ class ApkDownloadWorker(
 
         return try {
             withContext(Dispatchers.IO) { download(url, target, versionName) }
+            // Un APK con otra firma no es nuestro, venga de donde venga: se borra sin ofrecerlo.
+            if (!installer.isSignedLikeThisApp(target)) throw SecurityException("El APK no lleva la firma de ExoTube")
             notifier.showReadyToInstall(versionName, target, installer)
             Result.success(workDataOf(KEY_FILE to target.absolutePath))
         } catch (e: CancellationException) {

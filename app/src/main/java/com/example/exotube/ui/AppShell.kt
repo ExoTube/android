@@ -84,6 +84,12 @@ import com.example.exotube.ui.navigation.LibraryDestination
 import com.example.exotube.ui.navigation.PlaylistDestination
 import com.example.exotube.ui.navigation.PlaylistsDestination
 import com.example.exotube.ui.navigation.ChannelDestination
+import com.example.exotube.ui.navigation.LibraryFilterDestination
+import com.example.exotube.ui.navigation.SettingsDestination
+import com.example.exotube.ui.navigation.ThemeSettingsDestination
+import com.example.exotube.settings.LibraryFilterRoute
+import com.example.exotube.settings.SettingsRoute
+import com.example.exotube.settings.ThemeSettingsRoute
 import com.example.exotube.domain.model.OnlineVideo
 
 /** Pestañas de la barra inferior. */
@@ -196,8 +202,23 @@ fun AppShell(
                         onChangeCover = onChangeCover,
                         onRename = { itemToRename = it },
                         onDelete = { itemToDelete = it },
+                        onOpenSettings = { navController.navigate(SettingsDestination) },
                         contentPadding = padding,
                     )
+                }
+                composable<SettingsDestination> {
+                    SettingsRoute(
+                        onOpenTheme = { navController.navigate(ThemeSettingsDestination) },
+                        onOpenLibraryFilter = { navController.navigate(LibraryFilterDestination) },
+                        onBack = { navController.popBackStack() },
+                        contentPadding = padding,
+                    )
+                }
+                composable<ThemeSettingsDestination> {
+                    ThemeSettingsRoute(onBack = { navController.popBackStack() }, contentPadding = padding)
+                }
+                composable<LibraryFilterDestination> {
+                    LibraryFilterRoute(onBack = { navController.popBackStack() }, contentPadding = padding)
                 }
                 composable<ExploreDestination> {
                     ExploreRoute(

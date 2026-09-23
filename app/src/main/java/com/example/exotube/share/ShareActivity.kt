@@ -24,9 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.exotube.ExoTubeApp
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaFormat
 import com.example.exotube.ui.components.BottomSheetDownload
+import com.example.exotube.ui.theme.AppTheme
 import com.example.exotube.ui.theme.ExoTubeTheme
 
 /**
@@ -45,7 +47,9 @@ class ShareActivity : ComponentActivity() {
         viewModel.onSharedText(intent.sharedText())
 
         setContent {
-            ExoTubeTheme {
+            // El tema elegido en Ajustes. Al cambiarlo, la app entera se vuelve a pintar al momento.
+            val themeId by (application as ExoTubeApp).container.settings.themeId.collectAsStateWithLifecycle()
+            ExoTubeTheme(AppTheme.fromId(themeId)) {
                 ShareRoute(viewModel = viewModel, onClose = ::finish)
             }
         }

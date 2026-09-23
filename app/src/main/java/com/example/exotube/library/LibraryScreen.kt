@@ -24,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -70,6 +71,7 @@ fun LibraryRoute(
     onChangeCover: (LibraryItem) -> Unit,
     onRename: (LibraryItem) -> Unit,
     onDelete: (LibraryItem) -> Unit,
+    onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
     viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
 ) {
@@ -104,6 +106,7 @@ fun LibraryRoute(
         onRename = onRename,
         onDelete = onDelete,
         onAllowPhoneMusic = { requestPermission.launch(AudioLibraryPermission.name) },
+        onOpenSettings = onOpenSettings,
         contentPadding = contentPadding,
     )
 }
@@ -124,11 +127,12 @@ fun LibraryScreen(
     onRename: (LibraryItem) -> Unit,
     onDelete: (LibraryItem) -> Unit,
     onAllowPhoneMusic: () -> Unit,
+    onOpenSettings: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
-        item { LibraryHeader(state) }
+        item { LibraryHeader(state, onOpenSettings) }
         item {
             SearchField(
                 query = state.query,
@@ -177,8 +181,19 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun LibraryHeader(state: LibraryUiState) {
-    Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp)) {
+private fun LibraryHeader(state: LibraryUiState, onOpenSettings: () -> Unit) {
+    // El engranaje de Ajustes, arriba a la derecha como en casi todas las apps.
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(end = 8.dp)) {
+        LibraryTitle(state, Modifier.weight(1f))
+        IconButton(onClick = onOpenSettings, modifier = Modifier.padding(top = 12.dp)) {
+            Icon(painterResource(R.drawable.ic_settings), contentDescription = stringResource(R.string.settings_open))
+        }
+    }
+}
+
+@Composable
+private fun LibraryTitle(state: LibraryUiState, modifier: Modifier = Modifier) {
+    Column(modifier.padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 8.dp)) {
         // Logotipo de texto: "Exo" en blanco y "Tube" en verde.
         Text(
             text = buildAnnotatedString {
@@ -357,6 +372,7 @@ private fun LibraryScreenPreview() {
             onRename = {},
             onDelete = {},
             onAllowPhoneMusic = {},
+            onOpenSettings = {},
             contentPadding = PaddingValues(),
         )
     }
@@ -381,6 +397,7 @@ private fun LibraryScreenWithBannerPreview() {
             onRename = {},
             onDelete = {},
             onAllowPhoneMusic = {},
+            onOpenSettings = {},
             contentPadding = PaddingValues(),
         )
     }
@@ -405,6 +422,7 @@ private fun LibrarySearchWithoutResultsPreview() {
             onRename = {},
             onDelete = {},
             onAllowPhoneMusic = {},
+            onOpenSettings = {},
             contentPadding = PaddingValues(),
         )
     }
@@ -428,6 +446,7 @@ private fun EmptyLibraryPreview() {
             onRename = {},
             onDelete = {},
             onAllowPhoneMusic = {},
+            onOpenSettings = {},
             contentPadding = PaddingValues(),
         )
     }
