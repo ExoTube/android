@@ -95,6 +95,7 @@ enum class Tour(val id: String, val steps: List<TourStep>, val waitFor: TourSpot
         listOf(
             TourStep(TourSpot.SETTINGS_THEME, R.string.tour_settings_theme_title, R.string.tour_settings_theme_body),
             TourStep(TourSpot.SETTINGS_FILTER, R.string.tour_settings_filter_title, R.string.tour_settings_filter_body),
+            TourStep(TourSpot.SETTINGS_GUIDE, R.string.tour_settings_guide_title, R.string.tour_settings_guide_body),
             TourStep(TourSpot.SETTINGS_TUTORIAL, R.string.tour_settings_tutorial_title, R.string.tour_settings_tutorial_body),
         ),
     ),

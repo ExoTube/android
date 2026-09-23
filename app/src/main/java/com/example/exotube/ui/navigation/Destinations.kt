@@ -40,3 +40,7 @@ data object ThemeSettingsDestination
 
 @Serializable
 data object LibraryFilterDestination
+
+/** Ajustes → "Cómo descargar": la guía animada para cada red. */
+@Serializable
+data object DownloadGuideDestination

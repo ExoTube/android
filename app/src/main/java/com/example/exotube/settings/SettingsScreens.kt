@@ -75,6 +75,7 @@ import kotlin.math.roundToInt
 fun SettingsRoute(
     onOpenTheme: () -> Unit,
     onOpenLibraryFilter: () -> Unit,
+    onOpenGuide: () -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
@@ -85,6 +86,7 @@ fun SettingsRoute(
         state = state,
         onOpenTheme = onOpenTheme,
         onOpenLibraryFilter = onOpenLibraryFilter,
+        onOpenGuide = onOpenGuide,
         onRestartTutorial = {
             viewModel.onRestartTutorial()
             Toast.makeText(context, R.string.settings_tutorial_restarted, Toast.LENGTH_LONG).show()
@@ -99,6 +101,7 @@ private fun SettingsScreen(
     state: SettingsUiState,
     onOpenTheme: () -> Unit,
     onOpenLibraryFilter: () -> Unit,
+    onOpenGuide: () -> Unit,
     onRestartTutorial: () -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
@@ -127,6 +130,15 @@ private fun SettingsScreen(
                 },
                 onClick = onOpenLibraryFilter,
                 modifier = Modifier.tourSpot(TourSpot.SETTINGS_FILTER),
+            )
+        }
+        item {
+            SettingsRow(
+                icon = R.drawable.ic_download,
+                title = stringResource(R.string.settings_guide),
+                summary = stringResource(R.string.settings_guide_summary),
+                onClick = onOpenGuide,
+                modifier = Modifier.tourSpot(TourSpot.SETTINGS_GUIDE),
             )
         }
         item {
@@ -522,7 +534,7 @@ private fun LibraryFilterScreen(
 @Composable
 private fun SettingsScreenPreview() {
     ExoTubeTheme {
-        SettingsScreen(SettingsUiState(theme = AppTheme.SPIDER), {}, {}, {}, {}, PaddingValues())
+        SettingsScreen(SettingsUiState(theme = AppTheme.SPIDER), {}, {}, {}, {}, {}, PaddingValues())
     }
 }
 

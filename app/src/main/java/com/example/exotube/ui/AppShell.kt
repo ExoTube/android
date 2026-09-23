@@ -92,9 +92,11 @@ import com.example.exotube.ui.navigation.LibraryDestination
 import com.example.exotube.ui.navigation.PlaylistDestination
 import com.example.exotube.ui.navigation.PlaylistsDestination
 import com.example.exotube.ui.navigation.ChannelDestination
+import com.example.exotube.ui.navigation.DownloadGuideDestination
 import com.example.exotube.ui.navigation.LibraryFilterDestination
 import com.example.exotube.ui.navigation.SettingsDestination
 import com.example.exotube.ui.navigation.ThemeSettingsDestination
+import com.example.exotube.settings.DownloadGuideScreen
 import com.example.exotube.settings.LibraryFilterRoute
 import com.example.exotube.settings.SettingsRoute
 import com.example.exotube.settings.ThemeSettingsRoute
@@ -232,12 +234,16 @@ fun AppShell(
                     SettingsRoute(
                         onOpenTheme = { navController.navigate(ThemeSettingsDestination) },
                         onOpenLibraryFilter = { navController.navigate(LibraryFilterDestination) },
+                        onOpenGuide = { navController.navigate(DownloadGuideDestination) },
                         onBack = { navController.popBackStack() },
                         contentPadding = padding,
                     )
                 }
                 composable<ThemeSettingsDestination> {
                     ThemeSettingsRoute(onBack = { navController.popBackStack() }, contentPadding = padding)
+                }
+                composable<DownloadGuideDestination> {
+                    DownloadGuideScreen(onBack = { navController.popBackStack() }, contentPadding = padding)
                 }
                 composable<LibraryFilterDestination> {
                     LibraryFilterRoute(onBack = { navController.popBackStack() }, contentPadding = padding)

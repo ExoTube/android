@@ -239,7 +239,10 @@
     <string name="whats_new_title">Novedades de la %1$s</string>
     <string name="whats_new_subtitle">Esto es lo que se ha añadido</string>
     <string name="whats_new_continue">Empezar</string>
-    <string name="whats_new_notes">DESCARGAS MÁS RÁPIDAS\n• TikTok y X: la hoja de descarga aparece en un segundo. Ya puedes elegir mientras se completan las calidades.\n• En todas las redes la descarga empieza unos 2 segundos antes.\n\nTUTORIAL\n• Quien instala ExoTube ve qué hace cada botón al entrar en cada pantalla.\n• Si quieres verlo tú también: Ajustes, Ver el tutorial otra vez.</string>
+    <string name="whats_new_notes">DESCARGAS MÁS RÁPIDAS\n• TikTok y X: la hoja de descarga aparece en un segundo. Ya puedes elegir mientras se completan las calidades.\n• En todas las redes la descarga empieza unos 2 segundos antes.\n\nTUTORIAL\n• Quien instala ExoTube ve qué hace cada botón al entrar en cada pantalla.\n• Si quieres verlo tú también: Ajustes, Ver el tutorial otra vez.
+
+GUÍA ANIMADA
+• En Ajustes, Cómo descargar: una animación te enseña dónde tocar en TikTok, Instagram, X y Facebook.</string>
 
 
     <!-- Widget del tocadiscos en la pantalla de inicio -->
@@ -358,7 +361,7 @@
     <string name="tour_library_settings_title">Ajustes</string>
     <string name="tour_library_settings_body">Aquí eliges el tema de colores de la app y el filtro que esconde notas de voz y audios cortos.</string>
     <string name="tour_share_title">Descargar desde cualquier red</string>
-    <string name="tour_share_body">En YouTube, TikTok, Instagram, X o Facebook toca Compartir en el video y elige ExoTube. Escoge la calidad o MP3 y se guarda solo en tu biblioteca.</string>
+    <string name="tour_share_body">En YouTube, TikTok, Instagram, X o Facebook toca Compartir en el video y elige ExoTube. Escoge la calidad o MP3 y se guarda solo en tu biblioteca. En Ajustes, Cómo descargar, lo verás animado.</string>
     <string name="tour_widget_title">El widget tocadiscos</string>
     <string name="tour_widget_body">Mantén pulsada la pantalla de inicio del teléfono, toca Widgets y añade el de ExoTube: un disco que gira, con botones para pausar y cambiar de canción.</string>
 
@@ -417,4 +420,29 @@
     <string name="tour_settings_filter_body">Esconde los audios más cortos que elijas y las notas de voz, para que solo veas canciones.</string>
     <string name="tour_settings_tutorial_title">Repetir el tutorial</string>
     <string name="tour_settings_tutorial_body">Si alguna vez olvidas para qué sirve algo, vuelve a ver estas explicaciones desde aquí.</string>
+
+    <!-- Ajustes: guía animada para descargar desde otras redes -->
+    <string name="settings_guide">Cómo descargar</string>
+    <string name="settings_guide_summary">TikTok, Instagram, X y Facebook, paso a paso</string>
+    <string name="guide_title">Cómo descargar</string>
+    <string name="guide_more_tiktok">Más</string>
+    <string name="guide_more_instagram">Compartir en…</string>
+    <string name="guide_more_x">Compartir mediante…</string>
+    <string name="guide_more_facebook">Más opciones</string>
+    <string name="guide_tiktok_1">Abre el video en TikTok y toca la flecha de Compartir, en la columna de la derecha.</string>
+    <string name="guide_tiktok_2">En el panel que se abre, desliza la fila de apps hasta el final y toca «%1$s».</string>
+    <string name="guide_instagram_1">En el reel o la publicación, toca el avión de papel (Compartir), a la derecha.</string>
+    <string name="guide_instagram_2">En la fila de abajo, desliza hasta el final y toca «%1$s».</string>
+    <string name="guide_x_1">Debajo de la publicación con video, toca el botón de Compartir, a la derecha.</string>
+    <string name="guide_x_2">En el menú que se abre, toca «%1$s».</string>
+    <string name="guide_facebook_1">Debajo del video, toca Compartir.</string>
+    <string name="guide_facebook_2">En el menú que se abre, toca «%1$s».</string>
+    <string name="guide_step_pick_exotube">En la lista de apps del teléfono, elige ExoTube. Si no la ves, desliza: a veces está al final.</string>
+    <string name="guide_step_quality">Elige la calidad o MP3. La descarga sigue sola aunque cierres la hoja, y se guarda en tu Biblioteca.</string>
+    <string name="guide_note">Los nombres de los botones pueden cambiar un poco según la versión de cada app. Con YouTube funciona igual: Compartir y ExoTube.</string>
+    <string name="guide_share_with">Compartir con</string>
+    <string name="guide_downloading">Descargando…</string>
+    <string name="guide_saved">Guardado en tu Biblioteca</string>
+    <string name="tour_settings_guide_title">Cómo descargar</string>
+    <string name="tour_settings_guide_body">Una animación te enseña dónde tocar en TikTok, Instagram, X y Facebook para mandar un video a ExoTube.</string>
 </resources>
