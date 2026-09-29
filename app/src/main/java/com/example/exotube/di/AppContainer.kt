@@ -2,6 +2,7 @@ package com.example.exotube.di
 
 import android.content.Context
 import com.example.exotube.BuildConfig
+import com.example.exotube.data.history.CachedRecommendations
 import com.example.exotube.data.history.DisabledHistoryRepository
 import com.example.exotube.data.history.SupabaseHistoryRepository
 import com.example.exotube.data.audio.FFmpegAudioEditor
@@ -17,6 +18,9 @@ import com.example.exotube.data.newpipe.NewPipeChannels
 import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.data.newpipe.NewPipeSearch
 import com.example.exotube.data.newpipe.NewPipeStreamResolver
+import com.example.exotube.data.newpipe.NewPipeSuggestions
+import com.example.exotube.data.newpipe.NewPipeVideoLists
+import com.example.exotube.data.search.SharedPrefsSearchHistory
 import com.example.exotube.data.playlist.ExoTubeDatabase
 import com.example.exotube.data.settings.AppSettings
 import com.example.exotube.data.playlist.PlaylistCoverStore
@@ -41,6 +45,8 @@ import com.example.exotube.domain.repository.MediaFileDeleter
 import com.example.exotube.domain.repository.MediaRepository
 import com.example.exotube.domain.repository.OnlineCatalogRepository
 import com.example.exotube.domain.repository.RecommendationRepository
+import com.example.exotube.domain.repository.SearchHistoryRepository
+import com.example.exotube.domain.repository.SearchSuggestionRepository
 import com.example.exotube.domain.repository.UpdateRepository
 import com.example.exotube.download.MediaStoreSaver
 import com.example.exotube.ui.tour.Tour
@@ -96,6 +102,12 @@ class AppContainer(context: Context) {
         )
     }
 
+    /** Las predicciones del buscador de Explorar, las mismas que da YouTube al escribir. */
+    val searchSuggestions: SearchSuggestionRepository by lazy { NewPipeSuggestions(streamHttpClient) }
+
+    /** Las últimas búsquedas de Explorar. Solo en este teléfono. */
+    val searchHistory: SearchHistoryRepository by lazy { SharedPrefsSearchHistory(appContext) }
+
     /** Los canales de YouTube: su cabecera y sus videos, por páginas. */
     val channels: ChannelRepository by lazy { NewPipeChannels(streamHttpClient) }
 
@@ -147,7 +159,14 @@ class AppContainer(context: Context) {
 
     /** "Para ti": recomienda a partir de ese historial, sin cuentas ni servidor propio. */
     val recommendations: RecommendationRepository by lazy {
-        YtDlpRecommendations(ytDlpEngine, listeningDao)
+        CachedRecommendations(
+            source = YtDlpRecommendations(
+                engine = ytDlpEngine,
+                history = listeningDao,
+                quick = NewPipeVideoLists(streamHttpClient, NewPipeSearch(streamHttpClient)),
+            ),
+            file = File(appContext.filesDir, "para_ti.json"),
+        )
     }
 
     val playlistRepository: PlaylistRepository by lazy {

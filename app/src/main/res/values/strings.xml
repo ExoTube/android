@@ -445,4 +445,8 @@ GUÍA ANIMADA
     <string name="guide_saved">Guardado en tu Biblioteca</string>
     <string name="tour_settings_guide_title">Cómo descargar</string>
     <string name="tour_settings_guide_body">Una animación te enseña dónde tocar en TikTok, Instagram, X y Facebook para mandar un video a ExoTube.</string>
+
+    <!-- Buscador: menú de predicciones -->
+    <string name="search_copy">Copiar en el buscador</string>
+    <string name="search_forget">Borrar de las búsquedas recientes</string>
 </resources>

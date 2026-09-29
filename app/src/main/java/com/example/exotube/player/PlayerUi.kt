@@ -167,6 +167,8 @@ fun NowPlayingScreen(
     modifier: Modifier = Modifier,
     /** Abrir el canal del video en línea que suena; null si no aplica. */
     onOpenChannel: ((OnlineVideo) -> Unit)? = null,
+    /** true mientras el video se ve a pantalla completa, encima de esta pantalla. */
+    isVideoElsewhere: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
 
@@ -184,6 +186,7 @@ fun NowPlayingScreen(
             online = online,
             onChangeQuality = onChangeQuality,
             onOpenChannel = onOpenChannel,
+            isVideoElsewhere = isVideoElsewhere,
         )
     }
 }
@@ -213,6 +216,7 @@ private fun NowPlayingContent(
     online: OnlinePlayback?,
     onChangeQuality: (VideoQuality) -> Unit,
     onOpenChannel: ((OnlineVideo) -> Unit)?,
+    isVideoElsewhere: Boolean,
 ) {
     val colors = MaterialTheme.colorScheme
     val current = rememberCurrentMediaItemState(player)
@@ -278,6 +282,7 @@ private fun NowPlayingContent(
                 player = player,
                 isLoadingStream = onlineNow?.isLoadingStream == true,
                 onEnterFullscreen = onEnterFullscreen,
+                showPicture = !isVideoElsewhere,
             )
         } else {
             BreathingArtwork(
@@ -354,7 +359,18 @@ private fun NowPlayingContent(
  * fallo): una rueda en el centro dice que algo está pasando y que no hace falta tocar nada.
  */
 @Composable
-private fun VideoFrame(player: Player, isLoadingStream: Boolean, onEnterFullscreen: () -> Unit) {
+private fun VideoFrame(
+    player: Player,
+    isLoadingStream: Boolean,
+    onEnterFullscreen: () -> Unit,
+    /**
+     * false mientras el video se ve en otro sitio (a pantalla completa). Un reproductor solo
+     * dibuja en una superficie a la vez: si este recuadro siguiera aquí, al volver de la
+     * pantalla completa se quedaría con la última imagen congelada y el sonido seguiría. Al
+     * quitarlo y ponerlo de nuevo, el recuadro se vuelve a conectar al video.
+     */
+    showPicture: Boolean = true,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -362,7 +378,7 @@ private fun VideoFrame(player: Player, isLoadingStream: Boolean, onEnterFullscre
             .clip(RoundedCornerShape(16.dp))
             .background(Color.Black),
     ) {
-        ContentFrame(player = player, modifier = Modifier.fillMaxSize())
+        if (showPicture) ContentFrame(player = player, modifier = Modifier.fillMaxSize())
         if (isLoadingStream) {
             CircularProgressIndicator(
                 color = MaterialTheme.colorScheme.primary,

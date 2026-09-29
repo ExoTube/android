@@ -4,7 +4,11 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.exotube.data.network.Ipv4FirstDns
+import com.example.exotube.data.history.ListeningDao
+import com.example.exotube.data.history.ListeningEntity
 import com.example.exotube.data.newpipe.NewPipeChannels
+import com.example.exotube.data.newpipe.NewPipeSuggestions
+import com.example.exotube.data.newpipe.NewPipeVideoLists
 import com.example.exotube.data.newpipe.NewPipeMediaInfo
 import com.example.exotube.data.newpipe.NewPipeSearch
 import com.example.exotube.data.newpipe.NewPipeStreamResolver
@@ -13,6 +17,8 @@ import com.example.exotube.data.ytdlp.InfoJsonCache
 import com.example.exotube.data.ytdlp.MediaExtractorManager
 import com.example.exotube.data.ytdlp.YtDlpCatalog
 import com.example.exotube.data.ytdlp.YtDlpEngine
+import com.example.exotube.data.ytdlp.YtDlpRecommendations
+import com.example.exotube.domain.model.Recommendation
 import com.example.exotube.domain.model.DownloadRequest
 import com.example.exotube.domain.model.MediaInfo
 import com.example.exotube.domain.model.OnlineChannel
@@ -243,6 +249,47 @@ class StreamSpeedBenchmark {
             }
             log("  la descarga tardó $downloadMs ms (con el análisis guardado)")
             dir.deleteRecursively()
+        }
+    }
+
+    /**
+     * "Para ti" con yt-dlp y con NewPipe, con el mismo historial de ejemplo: dos canciones
+     * escuchadas en línea (su Mix) y una descargada de la que solo se sabe el artista (búsqueda).
+     */
+    @Test
+    fun medirParaTi() = runBlocking<Unit> {
+        val engine = YtDlpEngine(context).apply { initialize() }
+        val history = object : ListeningDao {
+            override suspend fun record(mediaKey: String, title: String, artist: String?, videoId: String?, playedAt: Long) = Unit
+            override suspend fun topPlayed(limit: Int) = listOf(
+                ListeningEntity("a", "Never Gonna Give You Up", "Rick Astley", "dQw4w9WgXcQ", 5, 3),
+                ListeningEntity("b", "Despacito", "Luis Fonsi", "kJQP7kiw5Fk", 4, 2),
+                ListeningEntity("c", "Musica Ligera", "Soda Stereo", null, 3, 1),
+            )
+            override suspend fun count() = 3
+            override suspend fun forget(mediaKey: String) = Unit
+            override suspend fun clear() = Unit
+        }
+        val slow = YtDlpRecommendations(engine, history)
+        val quick = YtDlpRecommendations(engine, history, NewPipeVideoLists(client, NewPipeSearch(client)))
+        repeat(2) { round ->
+            for ((name, repo) in listOf("yt-dlp " to slow, "NewPipe" to quick)) {
+                var result: Result<List<Recommendation>>? = null
+                val ms = measureTimeMillis { result = repo.forYou() }
+                val blocks = result?.getOrNull()?.joinToString { "${it.becauseOf}:${it.videos.size}" } ?: "FALLO ${result?.exceptionOrNull()}"
+                log("ronda ${round + 1} Para ti $name: $ms ms  $blocks")
+            }
+        }
+    }
+
+    /** Las predicciones del buscador: qué llega y cuánto tarda cada letra. */
+    @Test
+    fun medirPredicciones() = runBlocking<Unit> {
+        val suggestions = NewPipeSuggestions(client)
+        for (text in listOf("s", "so", "sod", "soda", "soda ste", "bad bun", "soda ste")) {
+            var found = emptyList<String>()
+            val ms = measureTimeMillis { found = runCatching { suggestions.suggest(text) }.getOrElse { listOf("FALLO $it") } }
+            log("\"$text\": $ms ms  ${found.take(5)}")
         }
     }
 

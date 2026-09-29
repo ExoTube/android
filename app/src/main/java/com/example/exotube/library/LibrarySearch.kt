@@ -17,12 +17,31 @@ internal fun LibraryItem.matchesQuery(query: String): Boolean {
 }
 
 /**
+ * Artistas de la biblioteca que encajan con lo escrito, para el menú de predicciones. Primero los
+ * que empiezan por ello ("sod" → "Soda Stereo") y luego los que solo lo contienen. Es todo local:
+ * sale al instante, sin internet.
+ */
+internal fun artistSuggestions(items: List<LibraryItem>, query: String): List<String> {
+    val typed = query.normalizeForSearch()
+    if (typed.length < MIN_TYPED_FOR_ARTISTS) return emptyList()
+    return items
+        .mapNotNull { it.artist?.trim()?.takeIf(String::isNotEmpty) }
+        .distinctBy { it.normalizeForSearch() }
+        .filter { artist -> artist.normalizeForSearch().let { it.contains(typed) && it != typed } }
+        .sortedBy { !it.normalizeForSearch().startsWith(typed) }
+        .take(MAX_ARTIST_SUGGESTIONS)
+}
+
+private const val MIN_TYPED_FOR_ARTISTS = 2
+private const val MAX_ARTIST_SUGGESTIONS = 4
+
+/**
  * Pasa a minúsculas y quita las tildes: "Canción" → "cancion".
  *
  * Normalizer.Form.NFD separa cada letra acentuada en dos caracteres (la letra y el acento suelto);
  * borrando los acentos sueltos queda la letra pelada.
  */
-private fun String.normalizeForSearch(): String =
+internal fun String.normalizeForSearch(): String =
     Normalizer.normalize(trim().lowercase(), Normalizer.Form.NFD).replace(COMBINING_MARKS, "")
 
 /** Los acentos que NFD deja sueltos son "marcas sin espacio" (Mn en la tabla Unicode). */

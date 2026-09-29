@@ -28,6 +28,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +56,10 @@ import com.example.exotube.ui.components.LoadMoreFooter
 import com.example.exotube.ui.components.LoadMoreWhenNearEnd
 import com.example.exotube.ui.components.OnlineVideoRow
 import com.example.exotube.ui.components.shareToSelf
+import com.example.exotube.ui.components.HideKeyboardOnScroll
 import com.example.exotube.ui.components.SearchField
+import com.example.exotube.ui.components.SearchSuggestionRow
+import com.example.exotube.ui.components.SuggestionAction
 import com.example.exotube.ui.messageRes
 import com.example.exotube.ui.theme.ExoTubeTheme
 
@@ -86,6 +93,9 @@ fun ExploreRoute(
         state = state,
         onQueryChange = viewModel::onQueryChange,
         onSearch = viewModel::onSearch,
+        onSuggestionPicked = viewModel::onSuggestionPicked,
+        onSuggestionCopied = viewModel::onSuggestionCopied,
+        onForgetSearch = viewModel::onForgetSearch,
         onTopicSelected = viewModel::onTopicSelected,
         onAudioOnlyChange = viewModel::onAudioOnlyChange,
         onVideoSelected = viewModel::onVideoSelected,
@@ -117,10 +127,18 @@ fun ExploreScreen(
     onLoadMore: () -> Unit = {},
     onRetryMore: () -> Unit = {},
     onOpenChannel: (OnlineVideo) -> Unit = {},
+    onSuggestionPicked: (String) -> Unit = {},
+    onSuggestionCopied: (String) -> Unit = {},
+    onForgetSearch: (String) -> Unit = {},
 ) {
     val listState = rememberLazyListState()
     val ready = state.results as? ExploreResults.Ready
     LoadMoreWhenNearEnd(listState, itemCount = ready?.videos?.size ?: 0) { if (ready != null) onLoadMore() }
+
+    // Mientras se escribe se enseñan las predicciones; al buscar (o tocar otra cosa) se van.
+    var isTyping by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    HideKeyboardOnScroll(listState)
 
     LazyColumn(state = listState, contentPadding = contentPadding, modifier = modifier.fillMaxWidth()) {
         item { ExploreHeader() }
@@ -130,14 +148,36 @@ fun ExploreScreen(
                 onQueryChange = onQueryChange,
                 hint = stringResource(R.string.explore_search_hint),
                 onSearch = onSearch,
+                onFocusChange = { isTyping = it },
                 modifier = Modifier.tourSpot(TourSpot.EXPLORE_SEARCH),
             )
+        }
+        if (isTyping) {
+            items(state.suggestions, key = { "prediccion-${it.isRecent}-${it.text}" }) { suggestion ->
+                SearchSuggestionRow(
+                    text = suggestion.text,
+                    typed = state.query,
+                    icon = if (suggestion.isRecent) R.drawable.ic_history else R.drawable.ic_search,
+                    onClick = {
+                        focusManager.clearFocus()
+                        onSuggestionPicked(suggestion.text)
+                    },
+                    action = if (suggestion.isRecent) {
+                        SuggestionAction(R.drawable.ic_close, stringResource(R.string.search_forget)) { onForgetSearch(suggestion.text) }
+                    } else {
+                        SuggestionAction(R.drawable.ic_north_west, stringResource(R.string.search_copy)) { onSuggestionCopied(suggestion.text) }
+                    },
+                )
+            }
         }
         item {
             TopicRow(
                 selected = state.topic.takeIf { state.isTopicSelected },
                 audioOnly = state.audioOnly,
-                onTopicSelected = onTopicSelected,
+                onTopicSelected = { topic ->
+                    focusManager.clearFocus()
+                    onTopicSelected(topic)
+                },
                 onAudioOnlyChange = onAudioOnlyChange,
             )
         }
@@ -166,7 +206,10 @@ fun ExploreScreen(
                         video = video,
                         isResolving = video.id == state.resolvingId,
                         isTourAnchor = blockIndex == 0 && video == block.videos.first(),
-                        onClick = { onVideoSelected(video) },
+                        onClick = {
+                            focusManager.clearFocus()
+                            onVideoSelected(video)
+                        },
                         onDownload = { onDownload(video) },
                         onOpenChannel = { onOpenChannel(video) },
                     )
@@ -185,7 +228,10 @@ fun ExploreScreen(
                         video = video,
                         isResolving = video.id == state.resolvingId,
                         isTourAnchor = video == results.videos.first(),
-                        onClick = { onVideoSelected(video) },
+                        onClick = {
+                            focusManager.clearFocus()
+                            onVideoSelected(video)
+                        },
                         onDownload = { onDownload(video) },
                         onOpenChannel = { onOpenChannel(video) },
                     )

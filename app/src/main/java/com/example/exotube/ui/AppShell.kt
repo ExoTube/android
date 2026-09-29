@@ -339,6 +339,7 @@ fun AppShell(
                     online = online,
                     onChangeQuality = playerViewModel::changeQuality,
                     onOpenChannel = openChannel,
+                    isVideoElsewhere = isFullscreen,
                 )
             }
         }

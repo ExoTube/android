@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import com.example.exotube.ui.components.SearchSuggestionRow
+import com.example.exotube.ui.components.HideKeyboardOnScroll
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -133,15 +137,35 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
+    val listState = rememberLazyListState()
+    // Mientras se escribe se sugieren artistas; al buscar o tocar uno, el teclado se cierra.
+    var isTyping by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    HideKeyboardOnScroll(listState)
+
+    LazyColumn(state = listState, contentPadding = contentPadding, modifier = modifier.fillMaxSize()) {
         item { LibraryHeader(state, onOpenSettings) }
         item {
             SearchField(
                 query = state.query,
                 onQueryChange = onQueryChange,
                 hint = stringResource(R.string.library_search_hint),
+                onFocusChange = { isTyping = it },
                 modifier = Modifier.tourSpot(TourSpot.LIBRARY_SEARCH),
             )
+        }
+        if (isTyping) {
+            items(state.artistSuggestions, key = { "artista-$it" }) { artist ->
+                SearchSuggestionRow(
+                    text = artist,
+                    typed = state.query,
+                    icon = R.drawable.ic_search,
+                    onClick = {
+                        onQueryChange(artist)
+                        focusManager.clearFocus()
+                    },
+                )
+            }
         }
         item {
             Box(Modifier.tourSpot(TourSpot.LIBRARY_FILTERS)) {
@@ -166,7 +190,10 @@ fun LibraryScreen(
                 MediaRow(
                     item = item,
                     isCurrent = item.uri == nowPlayingUri,
-                    onClick = { onItemClick(index) },
+                    onClick = {
+                        focusManager.clearFocus()
+                        onItemClick(index)
+                    },
                     isPlaying = isPlaying,
                     // Solo la primera fila: el tutorial señala su botón de opciones.
                     menuModifier = Modifier.tourSpot(TourSpot.LIBRARY_ROW_MENU, enabled = index == 0),

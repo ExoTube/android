@@ -12,6 +12,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -29,6 +30,8 @@ import kotlin.coroutines.cancellation.CancellationException
 class YtDlpRecommendations(
     private val engine: YtDlpEngine,
     private val history: ListeningDao,
+    /** Las mismas listas, mucho más rápido (NewPipe). Si falla, se usa yt-dlp como siempre. */
+    private val quick: QuickVideoLists? = null,
 ) : RecommendationRepository {
 
     override suspend fun hasEnoughHistory(): Boolean = withContext(Dispatchers.IO) {
@@ -79,7 +82,7 @@ class YtDlpRecommendations(
      * videos de la lista y esto tardaría minutos en vez de segundos.
      */
     private suspend fun mixOf(videoId: String): Result<List<OnlineVideo>> =
-        runCatching {
+        quickly("mix $videoId") { it.mix(videoId) } ?: runCatching {
             val request = engine.newRequest("https://www.youtube.com/watch?v=$videoId&list=RD$videoId")
                 .addOption("--dump-single-json")
                 .addOption("--flat-playlist")
@@ -95,7 +98,7 @@ class YtDlpRecommendations(
 
     /** Plan B para lo descargado: buscar por el artista. */
     private suspend fun searchOf(artist: String): Result<List<OnlineVideo>> =
-        runCatching {
+        quickly("búsqueda $artist") { it.search(artist) } ?: runCatching {
             val request = engine.newRequest("ytsearch$MIX_SIZE:$artist")
                 .addOption("--dump-single-json")
                 .addOption("--flat-playlist")
@@ -108,8 +111,27 @@ class YtDlpRecommendations(
             .onFailure { Log.i(TAG, "Sin resultados para $artist: ${it.message}") }
             .mapError()
 
+    /**
+     * Intenta el camino rápido. null si no hay, si falla o si no trae nada: entonces se usa
+     * yt-dlp. Una lista vacía también se reintenta, porque puede ser un fallo disimulado.
+     */
+    private suspend fun quickly(what: String, block: suspend (QuickVideoLists) -> List<OnlineVideo>): Result<List<OnlineVideo>>? {
+        val source = quick ?: return null
+        return try {
+            withTimeoutOrNull(QUICK_TIMEOUT_MS) { block(source) }?.takeIf { it.isNotEmpty() }?.let { Result.success(it) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.i(TAG, "NewPipe no pudo con $what; se prueba con yt-dlp", e)
+            null
+        }
+    }
+
     private companion object {
         const val TAG = "YtDlpRecommendations"
+
+        /** Lo normal es menos de un segundo; pasado esto, mejor probar con yt-dlp. */
+        const val QUICK_TIMEOUT_MS = 8_000L
 
         /** Bloques de "Porque escuchaste …". Más serían más esperas y más de lo mismo. */
         const val MAX_SEEDS = 3
@@ -117,6 +139,13 @@ class YtDlpRecommendations(
         const val MIX_SIZE = 25
         const val PER_BLOCK = 15
     }
+}
+
+/** Las listas de "Para ti" por un camino más rápido que yt-dlp (ver NewPipeVideoLists). */
+interface QuickVideoLists {
+    suspend fun mix(videoId: String): List<OnlineVideo>
+
+    suspend fun search(text: String): List<OnlineVideo>
 }
 
 /**

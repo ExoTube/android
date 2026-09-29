@@ -18,4 +18,10 @@ interface RecommendationRepository {
      * Lista vacía significa "todavía no hay de dónde sacar nada", que no es un error.
      */
     suspend fun forYou(): Result<List<Recommendation>>
+
+    /**
+     * Las últimas recomendaciones que se trajeron, para enseñarlas al instante mientras llegan
+     * las nuevas. null si no hay ninguna guardada.
+     */
+    suspend fun lastForYou(): List<Recommendation>? = null
 }

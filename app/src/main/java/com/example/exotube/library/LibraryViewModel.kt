@@ -35,6 +35,9 @@ data class LibraryUiState(
     val phoneMusicCount: Int = allItems.size - downloadsCount
 
     val isSearching: Boolean = query.isNotBlank()
+
+    /** Artistas que encajan con lo escrito: el menú de predicciones del buscador. */
+    val artistSuggestions: List<String> = artistSuggestions(allItems, query)
 }
 
 private fun LibraryItem.matches(filter: LibraryFilter): Boolean = when (filter) {

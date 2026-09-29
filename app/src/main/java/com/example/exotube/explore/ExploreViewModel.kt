@@ -14,8 +14,14 @@ import com.example.exotube.domain.model.Recommendation
 import com.example.exotube.domain.model.StreamSource
 import com.example.exotube.domain.model.VideoQuality
 import com.example.exotube.domain.repository.OnlineCatalogRepository
+import com.example.exotube.domain.repository.InMemorySearchHistory
+import com.example.exotube.domain.repository.NoSuggestions
 import com.example.exotube.domain.repository.RecommendationRepository
+import com.example.exotube.domain.repository.SearchHistoryRepository
+import com.example.exotube.domain.repository.SearchSuggestionRepository
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
@@ -24,6 +30,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
@@ -76,6 +85,8 @@ data class ExploreUiState(
     val results: ExploreResults = ExploreResults.Loading,
     /** Id del video cuyo enlace se está resolviendo: la fila muestra un indicador. */
     val resolvingId: String? = null,
+    /** El menú de predicciones bajo el buscador. La pantalla lo enseña solo mientras se escribe. */
+    val suggestions: List<SearchSuggestion> = emptyList(),
 )
 
 /** Cosas que pasan una sola vez y no son "estado": van por un canal, no por el StateFlow. */
@@ -89,6 +100,8 @@ class ExploreViewModel(
     private val recommendations: RecommendationRepository,
     /** Si ahora se está con datos móviles; decide la calidad automática. */
     private val isMeteredConnection: () -> Boolean,
+    private val suggestions: SearchSuggestionRepository = NoSuggestions,
+    private val history: SearchHistoryRepository = InMemorySearchHistory(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -125,7 +138,11 @@ class ExploreViewModel(
         val work: Deferred<Result<StreamSource>>,
     )
 
+    /** Lo escrito, para las predicciones: cada cambio cancela la consulta anterior. */
+    private val typed = MutableStateFlow("")
+
     init {
+        watchSuggestions()
         // Se abre en "Para ti" si hay historial; si no, en Música, que es lo útil el primer día.
         viewModelScope.launch {
             val topic = if (recommendations.hasEnoughHistory()) ExploreTopic.FOR_YOU else ExploreTopic.MUSIC
@@ -134,16 +151,63 @@ class ExploreViewModel(
         }
     }
 
-    /** Se escribe libremente; no se busca hasta que el usuario lo pide (cada búsqueda cuesta). */
+    /**
+     * Se escribe libremente; no se busca hasta que el usuario lo pide (cada búsqueda cuesta).
+     * Lo que sí se pide a cada letra son las predicciones, que son una consulta mínima.
+     */
     fun onQueryChange(text: String) {
         _uiState.value = _uiState.value.copy(query = text)
+        typed.value = text
     }
 
     fun onSearch() {
         val query = _uiState.value.query.trim()
         if (query.isEmpty()) return
+        history.remember(query)
         _uiState.value = _uiState.value.copy(isTopicSelected = false)
         load(query)
+    }
+
+    /** Se toca una predicción: se busca eso directamente. */
+    fun onSuggestionPicked(text: String) {
+        onQueryChange(text)
+        onSearch()
+    }
+
+    /**
+     * La flecha de una predicción: la copia en el buscador sin buscar, para seguir escribiendo
+     * ("soda stereo" → "soda stereo en vivo"), como en YouTube.
+     */
+    fun onSuggestionCopied(text: String) = onQueryChange("$text ")
+
+    fun onForgetSearch(text: String) = history.forget(text)
+
+    /**
+     * Mantiene al día el menú de predicciones. Espera un instante tras cada letra (quien escribe
+     * rápido no necesita una consulta por letra) y, si llega una letra nueva, la consulta en
+     * marcha se descarta: solo cuenta la del texto actual.
+     */
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    private fun watchSuggestions() {
+        val predictions = typed
+            .debounce { if (it.isBlank()) 0L else SUGGESTION_DELAY_MS }
+            .mapLatest { text ->
+                text to try {
+                    if (text.isBlank()) emptyList() else suggestions.suggest(text)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    emptyList() // sin red no hay predicciones, pero se puede buscar igual
+                }
+            }
+        viewModelScope.launch {
+            // Lo escrito entra sin esperas: las recientes responden a cada letra al instante, y
+            // las predicciones de la letra anterior se siguen enseñando (solo las que aún encajan)
+            // hasta que llegan las nuevas.
+            combine(typed, predictions, history.recent) { current, (forText, found), recent ->
+                buildSuggestions(current, recent, predictionsStillValid(current, forText, found))
+            }.collect { list -> _uiState.value = _uiState.value.copy(suggestions = list) }
+        }
     }
 
     fun onTopicSelected(topic: ExploreTopic) {
@@ -313,15 +377,21 @@ class ExploreViewModel(
         loadedQuery = null // "Para ti" no se pagina
         stopPrefetching() // lo de la lista anterior ya no se va a tocar
         searchJob = viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(results = ExploreResults.Loading)
-            val results = recommendations.forYou().fold(
+            // Lo de la última vez, al instante; mientras, se piden las recomendaciones de hoy.
+            val saved = recommendations.lastForYou()?.let { ExploreResults.ForYou(it) }
+            _uiState.value = _uiState.value.copy(results = saved ?: ExploreResults.Loading)
+            if (saved != null) prefetchFirst(saved)
+
+            val fresh = recommendations.forYou().fold(
                 onSuccess = { blocks ->
                     if (blocks.isEmpty()) ExploreResults.NothingListenedYet else ExploreResults.ForYou(blocks)
                 },
                 onFailure = { ExploreResults.Error(it.asMediaError()) },
             )
-            _uiState.value = _uiState.value.copy(results = results)
-            prefetchFirst(results)
+            // Sin internet, lo guardado sigue sirviendo: mejor eso que un error a pantalla entera.
+            if (saved != null && fresh !is ExploreResults.ForYou) return@launch
+            _uiState.value = _uiState.value.copy(results = fresh)
+            prefetchFirst(fresh)
         }
     }
 
@@ -346,6 +416,9 @@ class ExploreViewModel(
         /** Cuántos videos de arriba de la lista se preparan por adelantado. */
         const val PREFETCH_COUNT = 3
 
+        /** Espera tras la última letra antes de pedir predicciones: rápido, pero no una por tecla. */
+        const val SUGGESTION_DELAY_MS = 120L
+
         /** Espera antes de empezar, para dejar cargar antes las miniaturas de la lista. */
         const val PREFETCH_DELAY_MS = 1_500L
 
@@ -356,6 +429,8 @@ class ExploreViewModel(
                     catalog = app.container.onlineCatalog,
                     recommendations = app.container.recommendations,
                     isMeteredConnection = app.container.connection::isMetered,
+                    suggestions = app.container.searchSuggestions,
+                    history = app.container.searchHistory,
                 )
             }
         }

@@ -13,7 +13,9 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -27,6 +29,10 @@ import com.example.exotube.R
  *  - sin él (Biblioteca), filtra mientras se escribe: la lista ya está en el teléfono;
  *  - con él (Explorar), hay que pulsar la lupa o la tecla "Buscar", porque cada búsqueda sale a
  *    internet y sería absurdo lanzar una por cada letra.
+ *
+ * En los dos, al pulsar "Buscar" el teclado se cierra: ya se ha dicho lo que se quería y hay que
+ * dejar sitio para ver los resultados. [onFocusChange] avisa de si se está escribiendo, para que
+ * la pantalla enseñe el menú de predicciones solo mientras tanto.
  */
 @Composable
 fun SearchField(
@@ -35,7 +41,14 @@ fun SearchField(
     hint: String,
     modifier: Modifier = Modifier,
     onSearch: (() -> Unit)? = null,
+    onFocusChange: (Boolean) -> Unit = {},
 ) {
+    // Quitar el foco al buscador es lo que cierra el teclado.
+    val focusManager = LocalFocusManager.current
+    val search: () -> Unit = {
+        onSearch?.invoke()
+        focusManager.clearFocus()
+    }
     TextField(
         value = query,
         onValueChange = onQueryChange,
@@ -45,7 +58,7 @@ fun SearchField(
             if (onSearch == null) {
                 Icon(icon, contentDescription = null)
             } else {
-                IconButton(onClick = onSearch) {
+                IconButton(onClick = search) {
                     Icon(icon, contentDescription = stringResource(R.string.search_action))
                 }
             }
@@ -60,7 +73,7 @@ fun SearchField(
         singleLine = true,
         shape = RoundedCornerShape(28.dp),
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch?.invoke() }),
+        keyboardActions = KeyboardActions(onSearch = { search() }),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -72,6 +85,7 @@ fun SearchField(
         ),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 4.dp),
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+            .onFocusChanged { onFocusChange(it.isFocused) },
     )
 }
