@@ -12,7 +12,11 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,8 +27,10 @@ import com.example.exotube.album.AlbumsViewModel
 import com.example.exotube.player.PlayerViewModel
 import com.example.exotube.playlist.PlaylistsViewModel
 import com.example.exotube.ui.AppShell
-import com.example.exotube.ui.theme.AppTheme
 import com.example.exotube.ui.theme.ExoTubeTheme
+import com.example.exotube.ui.theme.LocalWallpaper
+import com.example.exotube.ui.theme.Wallpaper
+import com.example.exotube.ui.theme.resolveLook
 import kotlinx.coroutines.launch
 
 /** Única Activity de la app principal: las pantallas son destinos de navegación dentro de ella. */
@@ -51,16 +57,28 @@ class MainActivity : ComponentActivity() {
         )
         watchPlayerForPictureInPicture()
         setContent {
-            // El tema elegido en Ajustes. Al cambiarlo, la app entera se vuelve a pintar al momento.
-            val themeId by (application as ExoTubeApp).container.settings.themeId.collectAsStateWithLifecycle()
-            ExoTubeTheme(AppTheme.fromId(themeId)) {
-                AppShell(
-                    playerViewModel = playerViewModel,
-                    playlistsViewModel = playlistsViewModel,
-                    albumsViewModel = albumsViewModel,
-                    isInPictureInPicture = isInPictureInPicture,
-                    onEnterPictureInPicture = ::enterPictureInPicture.takeIf { supportsPictureInPicture },
-                )
+            // El tema elegido en Ajustes (o el fondo propio). Al cambiarlo, la app entera se vuelve
+            // a pintar al momento.
+            val container = (application as ExoTubeApp).container
+            val themeId by container.settings.themeId.collectAsStateWithLifecycle()
+            val background by container.settings.customBackground.collectAsStateWithLifecycle()
+            val shares by container.settings.shares.collectAsStateWithLifecycle()
+            val look = resolveLook(themeId, background, shares)
+            // La imagen se lee del disco solo cuando cambia (nueva versión), no al mover "Oscurecer".
+            val image by produceState<ImageBitmap?>(null, look.background?.version) {
+                value = if (look.background != null) container.customBackgroundStore.load()?.asImageBitmap() else null
+            }
+            val wallpaper = look.background?.let { bg -> image?.let { Wallpaper(it, bg.dim) } }
+            ExoTubeTheme(look.colorScheme) {
+                CompositionLocalProvider(LocalWallpaper provides wallpaper) {
+                    AppShell(
+                        playerViewModel = playerViewModel,
+                        playlistsViewModel = playlistsViewModel,
+                        albumsViewModel = albumsViewModel,
+                        isInPictureInPicture = isInPictureInPicture,
+                        onEnterPictureInPicture = ::enterPictureInPicture.takeIf { supportsPictureInPicture },
+                    )
+                }
             }
         }
     }

@@ -9,8 +9,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Las preferencias de la pantalla de Ajustes (el tema de colores y el filtro de la biblioteca) y
- * qué partes del tutorial se han visto ya.
+ * Las preferencias de la pantalla de Ajustes (el tema de colores, el fondo propio y el filtro de la
+ * biblioteca) y qué partes del tutorial se han visto ya.
  *
  * Se guardan en SharedPreferences (un archivo pequeño dentro de la app) y además se exponen como
  * StateFlow: así, al mover la barra de duración o elegir un tema, las pantallas que lo usan se
@@ -72,11 +72,77 @@ class AppSettings(context: Context, allTourIds: Set<String>) {
         _libraryVisibility.value = visibility
     }
 
-    private companion object {
-        const val KEY_THEME = "tema"
-        const val KEY_MIN_AUDIO_SECONDS = "duracion_minima"
-        const val KEY_HIDE_VOICE_NOTES = "ocultar_notas_de_voz"
-        const val KEY_SEEN_TOURS = "tutorial_visto"
+    private val _shares = MutableStateFlow(preferences.getInt(KEY_SHARES, 0))
+
+    /** Cuántas veces se ha compartido ExoTube desde Ajustes: con [SHARES_TO_UNLOCK] se desbloquea el fondo propio. */
+    val shares: StateFlow<Int> = _shares.asStateFlow()
+
+    fun addShare() {
+        val updated = _shares.value + 1
+        preferences.edit { putInt(KEY_SHARES, updated) }
+        _shares.value = updated
+    }
+
+    private val _customBackground = MutableStateFlow(readCustomBackground())
+
+    /** El fondo propio (sus colores y cuánto se oscurece), o null si todavía no se eligió imagen. */
+    val customBackground: StateFlow<CustomBackground?> = _customBackground.asStateFlow()
+
+    /** Una imagen nueva: sus colores, y una versión nueva para que se vuelva a cargar. */
+    fun setCustomBackground(primary: Int, secondary: Int, tertiary: Int) {
+        val updated = CustomBackground(
+            primary, secondary, tertiary,
+            dim = _customBackground.value?.dim ?: CustomBackground.DEFAULT_DIM,
+            version = System.currentTimeMillis(),
+        )
+        saveCustomBackground(updated)
+        _customBackground.value = updated
+    }
+
+    fun setBackgroundDim(dim: Float) {
+        val updated = _customBackground.value?.copy(dim = dim.coerceIn(CustomBackground.MIN_DIM, CustomBackground.MAX_DIM)) ?: return
+        saveCustomBackground(updated)
+        _customBackground.value = updated
+    }
+
+    private fun readCustomBackground(): CustomBackground? {
+        if (!preferences.contains(KEY_BG_VERSION)) return null
+        return CustomBackground(
+            primary = preferences.getInt(KEY_BG_PRIMARY, 0),
+            secondary = preferences.getInt(KEY_BG_SECONDARY, 0),
+            tertiary = preferences.getInt(KEY_BG_TERTIARY, 0),
+            dim = preferences.getFloat(KEY_BG_DIM, CustomBackground.DEFAULT_DIM),
+            version = preferences.getLong(KEY_BG_VERSION, 0L),
+        )
+    }
+
+    private fun saveCustomBackground(background: CustomBackground) = preferences.edit {
+        putInt(KEY_BG_PRIMARY, background.primary)
+        putInt(KEY_BG_SECONDARY, background.secondary)
+        putInt(KEY_BG_TERTIARY, background.tertiary)
+        putFloat(KEY_BG_DIM, background.dim)
+        putLong(KEY_BG_VERSION, background.version)
+    }
+
+    companion object {
+        /** El "tema" del fondo propio: se guarda como un id más, igual que los de la lista. */
+        const val CUSTOM_THEME_ID = "fondo"
+
+        /** Cuántas veces hay que compartir ExoTube para desbloquear el fondo propio. */
+        const val SHARES_TO_UNLOCK = 2
+
+        fun isBackgroundUnlocked(shares: Int): Boolean = shares >= SHARES_TO_UNLOCK
+
+        private const val KEY_SHARES = "veces_compartido"
+        private const val KEY_BG_PRIMARY = "fondo_color_1"
+        private const val KEY_BG_SECONDARY = "fondo_color_2"
+        private const val KEY_BG_TERTIARY = "fondo_color_3"
+        private const val KEY_BG_DIM = "fondo_oscuro"
+        private const val KEY_BG_VERSION = "fondo_version"
+        private const val KEY_THEME = "tema"
+        private const val KEY_MIN_AUDIO_SECONDS = "duracion_minima"
+        private const val KEY_HIDE_VOICE_NOTES = "ocultar_notas_de_voz"
+        private const val KEY_SEEN_TOURS = "tutorial_visto"
     }
 }
 

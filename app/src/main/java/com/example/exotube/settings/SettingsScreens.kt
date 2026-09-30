@@ -3,8 +3,12 @@ package com.example.exotube.settings
 import android.os.Build
 import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -28,17 +32,23 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,6 +56,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -58,10 +70,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.exotube.BuildConfig
 import com.example.exotube.R
+import com.example.exotube.data.settings.AppSettings
+import com.example.exotube.data.settings.CustomBackground
 import com.example.exotube.domain.model.LibraryVisibility
 import com.example.exotube.ui.theme.AppTheme
 import com.example.exotube.ui.theme.ExoTubeTheme
 import com.example.exotube.ui.theme.ThemeGroup
+import com.example.exotube.ui.theme.colors
 import com.example.exotube.ui.theme.readableOn
 import com.example.exotube.ui.tour.TourSpot
 import com.example.exotube.ui.tour.tourSpot
@@ -112,9 +127,17 @@ private fun SettingsScreen(
             SettingsRow(
                 icon = R.drawable.ic_palette,
                 title = stringResource(R.string.settings_theme),
-                summary = stringResource(state.theme.label),
+                summary = stringResource(if (state.usingBackground) R.string.theme_custom_title else state.theme.label),
                 onClick = onOpenTheme,
-                trailing = { ThemeDots(state.theme) },
+                trailing = {
+                    val bg = state.background
+                    if (state.usingBackground && bg != null) {
+                        val colors = bg.colors
+                        ThemeDots(colors.background, listOf(colors.primary, colors.secondary, colors.tertiary))
+                    } else {
+                        ThemeDots(state.theme.background, listOf(state.theme.primary, state.theme.secondary, state.theme.tertiary))
+                    }
+                },
                 modifier = Modifier.tourSpot(TourSpot.SETTINGS_THEME),
             )
         }
@@ -212,14 +235,14 @@ private fun SettingsRow(
 
 /** Los tres acentos de un tema en bolitas: se reconoce de un vistazo sin leer el nombre. */
 @Composable
-private fun ThemeDots(theme: AppTheme) {
+private fun ThemeDots(background: Color, accents: List<Color>) {
     Row(horizontalArrangement = Arrangement.spacedBy((-6).dp), modifier = Modifier.padding(end = 8.dp)) {
-        listOf(theme.primary, theme.secondary, theme.tertiary).forEach { color ->
+        accents.forEach { color ->
             Box(
                 Modifier
                     .size(18.dp)
                     .clip(CircleShape)
-                    .background(theme.background)
+                    .background(background)
                     .padding(2.dp)
                     .clip(CircleShape)
                     .background(color),
@@ -239,13 +262,48 @@ fun ThemeSettingsRoute(
     viewModel: SettingsViewModel = viewModel(factory = SettingsViewModel.Factory),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    ThemeSettingsScreen(state.theme, viewModel::onThemeSelected, onBack, contentPadding)
+    val preview by viewModel.backgroundPreview.collectAsStateWithLifecycle()
+    val saving by viewModel.savingBackground.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    LaunchedEffect(viewModel) {
+        viewModel.messages.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+    }
+    // Al volver de compartir por segunda vez: se celebra el desbloqueo.
+    var sharesSeen by remember { mutableIntStateOf(state.shares) }
+    LaunchedEffect(state.shares) {
+        if (sharesSeen < AppSettings.SHARES_TO_UNLOCK && AppSettings.isBackgroundUnlocked(state.shares)) {
+            Toast.makeText(context, R.string.theme_custom_unlocked, Toast.LENGTH_LONG).show()
+        }
+        sharesSeen = state.shares
+    }
+    // El selector de fotos de Android: no pide permisos y solo deja elegir imágenes.
+    val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::onBackgroundPicked)
+    }
+    ThemeSettingsScreen(
+        state = state,
+        preview = preview,
+        saving = saving,
+        onThemeSelected = viewModel::onThemeSelected,
+        onShare = { shareExoTube(context) },
+        onPickImage = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+        onUseBackground = viewModel::onUseBackground,
+        onDimChange = viewModel::onBackgroundDimChange,
+        onBack = onBack,
+        contentPadding = contentPadding,
+    )
 }
 
 @Composable
 private fun ThemeSettingsScreen(
-    selected: AppTheme,
+    state: SettingsUiState,
+    preview: ImageBitmap?,
+    saving: Boolean,
     onThemeSelected: (AppTheme) -> Unit,
+    onShare: () -> Unit,
+    onPickImage: () -> Unit,
+    onUseBackground: () -> Unit,
+    onDimChange: (Float) -> Unit,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
 ) {
@@ -274,6 +332,9 @@ private fun ThemeSettingsScreen(
                 )
             }
         }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            CustomBackgroundCard(state, preview, saving, onShare, onPickImage, onUseBackground, onDimChange)
+        }
         ThemeGroup.entries.forEach { group ->
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
@@ -284,7 +345,186 @@ private fun ThemeSettingsScreen(
                 )
             }
             items(AppTheme.entries.filter { it.group == group }, key = { it.id }) { theme ->
-                ThemeCard(theme, isSelected = theme == selected, onClick = { onThemeSelected(theme) })
+                ThemeCard(theme, isSelected = !state.usingBackground && theme == state.theme, onClick = { onThemeSelected(theme) })
+            }
+        }
+    }
+}
+
+/**
+ * "Tu fondo": cualquier imagen de la galería como fondo de la app, con sus colores.
+ *
+ * Tiene tres estados: bloqueado (hay que compartir ExoTube), desbloqueado sin imagen y con imagen
+ * (vista previa, "Usar mi fondo" y cuánto oscurecerla).
+ */
+@Composable
+private fun CustomBackgroundCard(
+    state: SettingsUiState,
+    preview: ImageBitmap?,
+    saving: Boolean,
+    onShare: () -> Unit,
+    onPickImage: () -> Unit,
+    onUseBackground: () -> Unit,
+    onDimChange: (Float) -> Unit,
+) {
+    val background = state.background
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(
+            width = if (state.usingBackground) 2.dp else 1.dp,
+            color = if (state.usingBackground) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    painterResource(if (state.backgroundUnlocked) R.drawable.ic_image else R.drawable.ic_lock),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.theme_custom_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
+                )
+                if (state.usingBackground) {
+                    Icon(
+                        painterResource(R.drawable.ic_check),
+                        contentDescription = stringResource(R.string.theme_selected),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            Text(
+                text = stringResource(R.string.theme_custom_intro),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp, bottom = 12.dp),
+            )
+            when {
+                !state.backgroundUnlocked -> {
+                    Text(
+                        text = stringResource(R.string.theme_custom_locked, AppSettings.SHARES_TO_UNLOCK),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 10.dp)) {
+                        LinearProgressIndicator(
+                            progress = { state.shares.toFloat() / AppSettings.SHARES_TO_UNLOCK },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                        )
+                        Text(
+                            text = stringResource(R.string.theme_custom_progress, state.shares, AppSettings.SHARES_TO_UNLOCK),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                    Button(onClick = onShare, modifier = Modifier.fillMaxWidth()) {
+                        Icon(painterResource(R.drawable.ic_share), contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.theme_custom_share))
+                    }
+                }
+                saving -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Text(stringResource(R.string.theme_custom_saving), modifier = Modifier.padding(start = 12.dp))
+                }
+                background == null -> Button(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) {
+                    Icon(painterResource(R.drawable.ic_add_photo), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.theme_custom_pick))
+                }
+                else -> {
+                    Row {
+                        BackgroundThumbnail(preview, background)
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 16.dp),
+                        ) {
+                            val colors = background.colors
+                            ThemeDots(colors.background, listOf(colors.primary, colors.secondary, colors.tertiary))
+                            if (!state.usingBackground) {
+                                Button(onClick = onUseBackground, modifier = Modifier.fillMaxWidth()) {
+                                    Text(stringResource(R.string.theme_custom_use))
+                                }
+                            }
+                            OutlinedButton(onClick = onPickImage, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.theme_custom_change))
+                            }
+                        }
+                    }
+                    // Se guarda al soltar: mientras se arrastra solo cambia la vista previa.
+                    var dim by remember(background.dim) { mutableFloatStateOf(background.dim) }
+                    Text(
+                        text = stringResource(R.string.theme_custom_dim),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 16.dp),
+                    )
+                    Slider(
+                        value = dim,
+                        onValueChange = { dim = it },
+                        onValueChangeFinished = { onDimChange(dim) },
+                        valueRange = CustomBackground.MIN_DIM..CustomBackground.MAX_DIM,
+                    )
+                    Text(
+                        text = stringResource(R.string.theme_custom_dim_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** La imagen en pequeño con una fila de canción encima, pintada con los colores que salieron de ella. */
+@Composable
+private fun BackgroundThumbnail(preview: ImageBitmap?, background: CustomBackground) {
+    val colors = background.colors
+    Box(
+        Modifier
+            .width(96.dp)
+            .height(150.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(colors.background),
+    ) {
+        if (preview != null) {
+            Image(preview, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = background.dim)),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(8.dp),
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(colors.primary),
+            ) {
+                Icon(painterResource(R.drawable.ic_play), contentDescription = null, tint = readableOn(colors.primary), modifier = Modifier.size(16.dp))
+            }
+            Spacer(Modifier.width(6.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                FakeTextLine(Color(0xFFEDEDED), 0.55f)
+                FakeTextLine(Color(0xFFA9A9A9), 0.35f)
             }
         }
     }
@@ -542,7 +782,7 @@ private fun SettingsScreenPreview() {
 @Composable
 private fun ThemeSettingsPreview() {
     ExoTubeTheme {
-        ThemeSettingsScreen(AppTheme.CLASSIC, {}, {}, PaddingValues())
+        ThemeSettingsScreen(SettingsUiState(shares = 1), null, false, {}, {}, {}, {}, {}, {}, PaddingValues())
     }
 }
 

@@ -28,7 +28,7 @@ import com.example.exotube.ExoTubeApp
 import com.example.exotube.R
 import com.example.exotube.domain.model.MediaFormat
 import com.example.exotube.ui.components.BottomSheetDownload
-import com.example.exotube.ui.theme.AppTheme
+import com.example.exotube.ui.theme.resolveLook
 import com.example.exotube.ui.theme.ExoTubeTheme
 
 /**
@@ -47,9 +47,13 @@ class ShareActivity : ComponentActivity() {
         viewModel.onSharedText(intent.sharedText())
 
         setContent {
-            // El tema elegido en Ajustes. Al cambiarlo, la app entera se vuelve a pintar al momento.
-            val themeId by (application as ExoTubeApp).container.settings.themeId.collectAsStateWithLifecycle()
-            ExoTubeTheme(AppTheme.fromId(themeId)) {
+            // El tema elegido en Ajustes. Con fondo propio, sus colores: la hoja de descarga es
+            // pequeña y va encima de otra app, así que la imagen en sí no se dibuja.
+            val settings = (application as ExoTubeApp).container.settings
+            val themeId by settings.themeId.collectAsStateWithLifecycle()
+            val background by settings.customBackground.collectAsStateWithLifecycle()
+            val shares by settings.shares.collectAsStateWithLifecycle()
+            ExoTubeTheme(resolveLook(themeId, background, shares).colorScheme) {
                 ShareRoute(viewModel = viewModel, onClose = ::finish)
             }
         }

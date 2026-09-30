@@ -128,6 +128,12 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/now_playing_widget_info" />
         </receiver>
+
+        <!-- Android avisa aquí cuando, al compartir ExoTube desde Ajustes, se elige una app del menú.
+             exported="false": el aviso lo manda el sistema en nombre de la propia app. -->
+        <receiver
+            android:name=".settings.ShareChosenReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

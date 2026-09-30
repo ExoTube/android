@@ -12,6 +12,7 @@ import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import com.example.exotube.ui.theme.LocalWallpaper
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -195,9 +198,27 @@ fun AppShell(
     )
     val workingMessage by songEditViewModel.workingMessage.collectAsStateWithLifecycle()
 
+    val wallpaper = LocalWallpaper.current
     Box(Modifier.fillMaxSize()) {
+        // El fondo propio va detrás de todo, oscurecido para que los textos se lean encima.
+        if (wallpaper != null) {
+            Image(
+                bitmap = wallpaper.image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = wallpaper.dim)),
+            )
+        }
         Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
+            containerColor = if (wallpaper != null) Color.Transparent else MaterialTheme.colorScheme.background,
+            // Sobre un fondo transparente Compose no sabe qué color de letra usar y pone negro:
+            // se le dice que es el claro del tema, igual que sin fondo propio.
+            contentColor = MaterialTheme.colorScheme.onBackground,
             bottomBar = {
                 // Sin barra de pestañas (en el detalle), el mini reproductor respeta la barra del sistema.
                 Column(if (isTopLevel) Modifier else Modifier.navigationBarsPadding()) {
@@ -511,7 +532,9 @@ private fun WorkingOverlay(@StringRes messageRes: Int) {
 
 @Composable
 private fun BottomTabs(currentDestination: NavDestination?, onSelect: (TopLevelTab) -> Unit) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+    // Con fondo propio, la barra deja ver un poco de la imagen.
+    val barColor = MaterialTheme.colorScheme.surfaceContainerLow
+    NavigationBar(containerColor = if (LocalWallpaper.current != null) barColor.copy(alpha = 0.86f) else barColor) {
         TopLevelTab.entries.forEach { tab ->
             NavigationBarItem(
                 selected = currentDestination?.isOn(tab) == true,

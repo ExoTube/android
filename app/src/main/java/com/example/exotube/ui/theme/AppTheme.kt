@@ -77,53 +77,59 @@ enum class AppTheme(
      * El esquema completo de Material 3 para este tema. El clásico conserva el suyo, ajustado a
      * mano; los demás se calculan con las mismas reglas.
      */
-    val colorScheme: ColorScheme by lazy { if (this == CLASSIC) ClassicColors else generatedScheme() }
-
-    private fun generatedScheme(): ColorScheme {
-        // Las capas (tarjetas, hojas, barra inferior) son el fondo con un poco del acento encima:
-        // cuanto más alta la capa, más color. Así se distinguen sin romper el tono del tema.
-        fun layer(amount: Float) = primary.copy(alpha = amount).compositeOver(background)
-        val text = lerp(Color(0xFFEDEDED), primary, 0.06f)
-        val textSoft = lerp(Color(0xFFA9A9A9), primary, 0.22f)
-        return darkColorScheme(
-            primary = primary,
-            onPrimary = readableOn(primary),
-            primaryContainer = layer(0.24f),
-            onPrimaryContainer = lerp(primary, Color.White, 0.55f),
-            inversePrimary = lerp(primary, Color.Black, 0.4f),
-            secondary = secondary,
-            onSecondary = readableOn(secondary),
-            secondaryContainer = secondary.copy(alpha = 0.18f).compositeOver(background),
-            onSecondaryContainer = lerp(secondary, Color.White, 0.65f),
-            tertiary = tertiary,
-            onTertiary = readableOn(tertiary),
-            background = background,
-            onBackground = text,
-            surface = background,
-            onSurface = text,
-            surfaceVariant = layer(0.14f),
-            onSurfaceVariant = textSoft,
-            surfaceDim = background,
-            surfaceBright = layer(0.2f),
-            surfaceContainerLowest = background,
-            surfaceContainerLow = layer(0.05f),
-            surfaceContainer = layer(0.08f),
-            surfaceContainerHigh = layer(0.11f),
-            surfaceContainerHighest = layer(0.14f),
-            inverseSurface = text,
-            inverseOnSurface = layer(0.08f),
-            outline = lerp(Color(0xFF4A4A4A), primary, 0.25f),
-            outlineVariant = lerp(Color(0xFF2A2A2A), primary, 0.15f),
-            error = ErrorRed,
-            onError = Color(0xFF3B0A0A),
-            scrim = Color.Black,
-        )
+    val colorScheme: ColorScheme by lazy {
+        if (this == CLASSIC) ClassicColors else schemeFrom(background, primary, secondary, tertiary)
     }
 
     companion object {
         /** El tema guardado en Ajustes, o el clásico si no hay ninguno (o si ya no existe). */
         fun fromId(id: String?): AppTheme = entries.firstOrNull { it.id == id } ?: CLASSIC
     }
+}
+
+/**
+ * El esquema completo de Material 3 a partir de solo cuatro colores: el fondo y tres acentos.
+ * Lo usan los temas de la lista y también el fondo personalizado, con los colores de su imagen.
+ */
+internal fun schemeFrom(background: Color, primary: Color, secondary: Color, tertiary: Color): ColorScheme {
+    // Las capas (tarjetas, hojas, barra inferior) son el fondo con un poco del acento encima:
+    // cuanto más alta la capa, más color. Así se distinguen sin romper el tono del tema.
+    fun layer(amount: Float) = primary.copy(alpha = amount).compositeOver(background)
+    val text = lerp(Color(0xFFEDEDED), primary, 0.06f)
+    val textSoft = lerp(Color(0xFFA9A9A9), primary, 0.22f)
+    return darkColorScheme(
+        primary = primary,
+        onPrimary = readableOn(primary),
+        primaryContainer = layer(0.24f),
+        onPrimaryContainer = lerp(primary, Color.White, 0.55f),
+        inversePrimary = lerp(primary, Color.Black, 0.4f),
+        secondary = secondary,
+        onSecondary = readableOn(secondary),
+        secondaryContainer = secondary.copy(alpha = 0.18f).compositeOver(background),
+        onSecondaryContainer = lerp(secondary, Color.White, 0.65f),
+        tertiary = tertiary,
+        onTertiary = readableOn(tertiary),
+        background = background,
+        onBackground = text,
+        surface = background,
+        onSurface = text,
+        surfaceVariant = layer(0.14f),
+        onSurfaceVariant = textSoft,
+        surfaceDim = background,
+        surfaceBright = layer(0.2f),
+        surfaceContainerLowest = background,
+        surfaceContainerLow = layer(0.05f),
+        surfaceContainer = layer(0.08f),
+        surfaceContainerHigh = layer(0.11f),
+        surfaceContainerHighest = layer(0.14f),
+        inverseSurface = text,
+        inverseOnSurface = layer(0.08f),
+        outline = lerp(Color(0xFF4A4A4A), primary, 0.25f),
+        outlineVariant = lerp(Color(0xFF2A2A2A), primary, 0.15f),
+        error = ErrorRed,
+        onError = Color(0xFF3B0A0A),
+        scrim = Color.Black,
+    )
 }
 
 /**

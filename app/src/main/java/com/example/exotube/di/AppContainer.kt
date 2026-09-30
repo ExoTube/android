@@ -23,6 +23,7 @@ import com.example.exotube.data.newpipe.NewPipeVideoLists
 import com.example.exotube.data.search.SharedPrefsSearchHistory
 import com.example.exotube.data.playlist.ExoTubeDatabase
 import com.example.exotube.data.settings.AppSettings
+import com.example.exotube.data.settings.CustomBackgroundStore
 import com.example.exotube.data.playlist.PlaylistCoverStore
 import com.example.exotube.data.playlist.RoomPlaylistRepository
 import com.example.exotube.data.update.ApkInstaller
@@ -123,6 +124,9 @@ class AppContainer(context: Context) {
 
     /** El tema de colores y el filtro de la biblioteca, que se eligen en Ajustes. */
     val settings: AppSettings by lazy { AppSettings(appContext, Tour.allIds) }
+
+    /** La imagen del fondo propio (sus colores y demás, en [settings]). */
+    val customBackgroundStore: CustomBackgroundStore by lazy { CustomBackgroundStore(appContext) }
 
     /** Todo el audio y video del teléfono, sin filtrar. Lo usan las playlists. */
     val allMedia: LibraryRepository by lazy { MediaStoreLibraryRepository(appContext) }

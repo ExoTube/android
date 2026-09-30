@@ -1,5 +1,6 @@
 package com.example.exotube.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -46,9 +47,14 @@ internal val ClassicColors = darkColorScheme(
 
 /** [theme]: el elegido en Ajustes. Las vistas previas de Android Studio usan el clásico. */
 @Composable
-fun ExoTubeTheme(theme: AppTheme = AppTheme.CLASSIC, content: @Composable () -> Unit) {
+fun ExoTubeTheme(theme: AppTheme = AppTheme.CLASSIC, content: @Composable () -> Unit) =
+    ExoTubeTheme(theme.colorScheme, content)
+
+/** Con un esquema ya hecho: el del fondo propio, sacado de su imagen (ver [resolveLook]). */
+@Composable
+fun ExoTubeTheme(colorScheme: ColorScheme, content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = theme.colorScheme,
+        colorScheme = colorScheme,
         typography = Typography,
         content = content,
     )
