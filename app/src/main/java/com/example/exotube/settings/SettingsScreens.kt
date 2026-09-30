@@ -276,6 +276,10 @@ fun ThemeSettingsRoute(
         }
         sharesSeen = state.shares
     }
+    // El menú de compartir se abre "esperando respuesta": así ExoTube se entera de cuándo se vuelve.
+    val share = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        viewModel.onShareReturned()
+    }
     // El selector de fotos de Android: no pide permisos y solo deja elegir imágenes.
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(viewModel::onBackgroundPicked)
@@ -285,7 +289,10 @@ fun ThemeSettingsRoute(
         preview = preview,
         saving = saving,
         onThemeSelected = viewModel::onThemeSelected,
-        onShare = { shareExoTube(context) },
+        onShare = {
+            viewModel.onShareStarted()
+            share.launch(shareExoTubeIntent(context))
+        },
         onPickImage = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         onUseBackground = viewModel::onUseBackground,
         onDimChange = viewModel::onBackgroundDimChange,

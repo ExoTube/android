@@ -114,6 +114,29 @@ class WallpaperColorsTest {
     }
 
     @Test
+    fun `sin el aviso de Android, volver de WhatsApp tras unos segundos cuenta como compartido`() {
+        // Menús de Samsung, Xiaomi...: el aviso no llega y las veces siguen igual.
+        assertTrue(AppSettings.countsAsShared(startedAt = 10_000, sharesAtStart = 0, sharesNow = 0, now = 25_000))
+        assertTrue(AppSettings.countsAsShared(10_000, 1, 1, 10_000 + AppSettings.MIN_AWAY_MS))
+    }
+
+    @Test
+    fun `cerrar el menu enseguida no cuenta`() {
+        assertEquals(false, AppSettings.countsAsShared(10_000, 0, 0, 11_500))
+    }
+
+    @Test
+    fun `si el aviso de Android ya lo conto, no se cuenta dos veces`() {
+        assertEquals(false, AppSettings.countsAsShared(10_000, 0, sharesNow = 1, now = 30_000))
+    }
+
+    @Test
+    fun `sin un menu abierto antes, o con el telefono reiniciado entre medias, no cuenta`() {
+        assertEquals(false, AppSettings.countsAsShared(-1, -1, 0, 30_000))
+        assertEquals(false, AppSettings.countsAsShared(startedAt = 900_000, sharesAtStart = 0, sharesNow = 0, now = 5_000))
+    }
+
+    @Test
     fun `se desbloquea al compartir dos veces`() {
         assertEquals(false, AppSettings.isBackgroundUnlocked(0))
         assertEquals(false, AppSettings.isBackgroundUnlocked(1))

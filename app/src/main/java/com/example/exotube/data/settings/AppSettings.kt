@@ -83,6 +83,27 @@ class AppSettings(context: Context, allTourIds: Set<String>) {
         _shares.value = updated
     }
 
+    /**
+     * Se abrió el menú de compartir: se apunta cuándo y cuántas veces se llevaba compartido.
+     * Se guarda en disco y no en memoria porque, mientras la persona está en WhatsApp, Android
+     * puede cerrar ExoTube para liberar memoria.
+     */
+    fun markShareStarted(now: Long) = preferences.edit {
+        putLong(KEY_SHARE_STARTED_AT, now)
+        putInt(KEY_SHARES_AT_START, _shares.value)
+    }
+
+    /** Se volvió del menú de compartir: si el aviso de Android no llegó, se decide con [countsAsShared]. */
+    fun onShareReturned(now: Long) {
+        val startedAt = preferences.getLong(KEY_SHARE_STARTED_AT, -1L)
+        val sharesAtStart = preferences.getInt(KEY_SHARES_AT_START, -1)
+        preferences.edit {
+            remove(KEY_SHARE_STARTED_AT)
+            remove(KEY_SHARES_AT_START)
+        }
+        if (countsAsShared(startedAt, sharesAtStart, _shares.value, now)) addShare()
+    }
+
     private val _customBackground = MutableStateFlow(readCustomBackground())
 
     /** El fondo propio (sus colores y cuánto se oscurece), o null si todavía no se eligió imagen. */
@@ -133,7 +154,27 @@ class AppSettings(context: Context, allTourIds: Set<String>) {
 
         fun isBackgroundUnlocked(shares: Int): Boolean = shares >= SHARES_TO_UNLOCK
 
+        /**
+         * ¿Se compartió, aunque Android no lo haya avisado?
+         *
+         * El aviso "eligió WhatsApp" solo llega con el menú de compartir original de Android;
+         * los de muchas marcas (Samsung, Xiaomi...) no lo mandan. Para esos, cuenta haber salido
+         * a otra app y vuelto al menos [MIN_AWAY_MS] después: cerrar el menú sin elegir nada es
+         * cosa de un segundo. Si el aviso sí llegó, las veces ya subieron y no se cuenta dos veces.
+         *
+         * [startedAt] y [now] son del reloj que no se atrasa ni se adelanta (desde que se encendió
+         * el teléfono); si [now] es menor, el teléfono se reinició entre medias y no se cuenta.
+         */
+        fun countsAsShared(startedAt: Long, sharesAtStart: Int, sharesNow: Int, now: Long): Boolean =
+            startedAt >= 0 && sharesAtStart >= 0 && sharesNow == sharesAtStart &&
+                now >= startedAt && now - startedAt >= MIN_AWAY_MS
+
+        /** Lo mínimo fuera de ExoTube para dar por hecho que se compartió. */
+        const val MIN_AWAY_MS = 4_000L
+
         private const val KEY_SHARES = "veces_compartido"
+        private const val KEY_SHARE_STARTED_AT = "compartir_desde"
+        private const val KEY_SHARES_AT_START = "compartir_veces_antes"
         private const val KEY_BG_PRIMARY = "fondo_color_1"
         private const val KEY_BG_SECONDARY = "fondo_color_2"
         private const val KEY_BG_TERTIARY = "fondo_color_3"

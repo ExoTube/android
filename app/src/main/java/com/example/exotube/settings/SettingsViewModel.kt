@@ -1,6 +1,7 @@
 package com.example.exotube.settings
 
 import android.net.Uri
+import android.os.SystemClock
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
@@ -98,6 +99,10 @@ class SettingsViewModel(
     fun onThemeSelected(theme: AppTheme) = settings.setTheme(theme.id)
 
     fun onUseBackground() = settings.setTheme(AppSettings.CUSTOM_THEME_ID)
+
+    fun onShareStarted() = settings.markShareStarted(SystemClock.elapsedRealtime())
+
+    fun onShareReturned() = settings.onShareReturned(SystemClock.elapsedRealtime())
 
     /** Una imagen de la galería: se copia, se sacan sus colores y se pone de fondo al momento. */
     fun onBackgroundPicked(uri: Uri) {
